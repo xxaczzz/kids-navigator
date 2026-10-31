@@ -188,8 +188,23 @@
 
 <script src="app.js"></script>
 <script>
+  // Auto update: check for a new version on every start and when the app comes back to the screen.
+  // A new version is downloaded in the background and applied with a reload, but only on the main screen,
+  // never in the middle of a trip. Without internet the app keeps running from its saved files.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    let hadController = !!navigator.serviceWorker.controller, reloadPending = false;
+    const tryReload = () => {
+      const m = window.__nav && window.__nav.mode;
+      if (m === 'idle' || m === undefined) location.reload(); else setTimeout(tryReload, 2000);
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; } // first install, nothing to replace
+      if (reloadPending) return; reloadPending = true; tryReload();
+    });
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    }).catch(() => {}));
   }
 </script>
 </body>

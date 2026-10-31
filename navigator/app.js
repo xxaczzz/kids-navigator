@@ -1205,14 +1205,14 @@ async function engineStart() {
   const b = await sound('eng', 'snd/engine.ogg'); const a = audio(); if (!b || !a || eng || mode !== 'nav') return;
   const src = a.createBufferSource(), gain = a.createGain();
   src.buffer = b; src.loop = true; src.connect(gain).connect(a.destination);
-  gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.12, a.currentTime + 0.6);
+  gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.5, a.currentTime + 0.6);
   src.start(); eng = { src, gain };
 }
 function engineSpeed(v) {
   if (!eng) return;
   const k = Math.min(1, v / 110), a = actx;
   eng.src.playbackRate.setTargetAtTime(0.85 + 0.75 * k, a.currentTime, 0.3);
-  eng.gain.gain.setTargetAtTime(0.10 + 0.10 * k, a.currentTime, 0.3);
+  eng.gain.gain.setTargetAtTime(0.5 + 0.35 * k, a.currentTime, 0.3);
 }
 function engineStop() {
   if (!eng) return;
@@ -1231,7 +1231,7 @@ async function ignition() {
 }
 
 // ---------- fuel ----------
-const FUEL_METERS = 40000, FUEL_MIN = 0.05; // a full tank is about 8-10 trips; never runs dry
+const FUEL_METERS = 35000, FUEL_MIN = 0.05; // a full tank is about 8 trips; never runs dry
 let fuel = 1, fuelSaved = 0, refuelAnim = null;
 try { const f = parseFloat(localStorage.getItem('fuel')); if (f >= 0) fuel = Math.max(FUEL_MIN, Math.min(1, f)); } catch (e) { }
 const saveFuel = () => { try { localStorage.setItem('fuel', fuel.toFixed(3)); } catch (e) { } };

@@ -1,5 +1,5 @@
 // Bump VERSION after any change so phones pick up the new files.
-const VERSION = 'nav-v22';
+const VERSION = 'nav-v24';
 const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'img/kostya.jpg', 'snd/ignition.mp3', 'snd/engine.ogg'];
 const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'home', 'kindergarten', 'shop', 'gas_station', 'fire_station', 'playground',
@@ -8,9 +8,10 @@ const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_fro
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(async c => {
-    await c.addAll(CORE);
+    // cache: 'reload' skips the browser HTTP cache, so a new version never picks up old files
+    await c.addAll(CORE.map(u => new Request(u, { cache: 'reload' })));
     // sprites are optional: missing ones fall back to emoji
-    await Promise.allSettled(SPRITES.map(u => c.add(u)));
+    await Promise.allSettled(SPRITES.map(u => c.add(new Request(u, { cache: 'reload' }))));
   }).then(() => self.skipWaiting()));
 });
 
