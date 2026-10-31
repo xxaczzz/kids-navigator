@@ -126,9 +126,23 @@ const CITY = { minX: -600, maxX: 13000, minY: -800, maxY: 6600 };
 const coastY = x => 5200 + 260 * Math.sin(x / 1800) + 80 * Math.sin(x / 520);
 const RIVER = catmull([[6350, -900], [6250, 500], [6420, 1500], [6300, 2500], [6200, 3500], [6350, 4300], [6280, 5100], [6300, 6600]], 30);
 const RIVER_W = 100;
-const LAKES = [[3150, 820, 380, 210], [7000, 360, 300, 190], [12000, 650, 380, 240], [-60, 3000, 260, 380], [5450, 1080, 200, 130], [9900, 520, 230, 150]];
-const inLake = (p, m = 0) => LAKES.some(([cx, cy, rx, ry]) => ((p[0] - cx) / (rx + m)) ** 2 + ((p[1] - cy) / (ry + m)) ** 2 < 1);
-const lakeShape = ([cx, cy, rx, ry], k) => { const pts = []; for (let i = 0; i < 24; i++) { const a = i / 24 * TAU, f = 1 + 0.08 * Math.sin(a * 3 + k) + 0.05 * Math.cos(a * 5 + k * 2); pts.push([cx + Math.cos(a) * rx * f, cy + Math.sin(a) * ry * f]); } return catmull([...pts, pts[0]], 20); };
+const WEST_LAKE = (() => {
+  const pts = [], cx = -60, cy = 3000, rx = 260, ry = 380, k = 3;
+  for (let i = 0; i < 48; i++) {
+    const a = Math.PI / 2 + 0.26 + i / 47 * (2 * Math.PI - 0.5 - Math.PI / 2 - 0.26), f = 1 + 0.08 * Math.sin(a * 3 + k) + 0.05 * Math.cos(a * 5 + k * 2);
+    pts.push([cx + Math.cos(a) * rx * f, cy + Math.sin(a) * ry * f]);
+  }
+  // right shore runs down to the resort, wraps under it, and closes along the bottom
+  pts.push([205, 2960], [195, 3080], [150, 3180], [175, 3252], [270, 3262], [330, 3292], [310, 3345], [200, 3375], [90, 3390]);
+  return pts;
+})();
+const LAKES = [[3150, 820, 380, 210], [7000, 360, 300, 190], [12000, 650, 380, 240], { poly: WEST_LAKE, cx: 40, cy: 3000, rx: 300, ry: 390 }, [5450, 1080, 200, 130], [9900, 520, 230, 150]];
+const ptInPoly = (p, P) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) if ((P[i][1] > p[1]) !== (P[j][1] > p[1]) && p[0] < (P[j][0] - P[i][0]) * (p[1] - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) c = !c; return c; };
+const inLake = (p, m = 0) => LAKES.some(L => {
+  if (L.poly) { const P = lakeShape(L); if (ptInPoly(p, P)) return true; if (!m) return false; for (let i = 1; i < P.length; i++) if (segDist(p, P[i - 1], P[i]) < m) return true; return false; }
+  const [cx, cy, rx, ry] = L; return ((p[0] - cx) / (rx + m)) ** 2 + ((p[1] - cy) / (ry + m)) ** 2 < 1;
+});
+const lakeShape = (L, k) => { if (L.poly) return L._s || (L._s = catmull([...L.poly, L.poly[0], L.poly[1]], 20)); const [cx, cy, rx, ry] = L; const pts = []; for (let i = 0; i < 24; i++) { const a = i / 24 * TAU, f = 1 + 0.08 * Math.sin(a * 3 + k) + 0.05 * Math.cos(a * 5 + k * 2); pts.push([cx + Math.cos(a) * rx * f, cy + Math.sin(a) * ry * f]); } return catmull([...pts, pts[0]], 20); };
 function inWater(p) {
   if (inLake(p)) return true;
   if (p[1] > coastY(p[0])) return true;
@@ -141,24 +155,27 @@ function hwY(x) {
   return HWY[HWY.length - 1][1];
 }
 const G = {}, RBG = {}, GE = {}, GRIDS = {};
+let FARM_PTS = [];
 function grid(name, ox, oy, nx, ny, step, rotDeg, o) {
   const rot = rotDeg * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
   const cx = ox + step * (nx - 1) / 2, cy = oy + step * (ny - 1) / 2;
   const pos = (i, j) => { const dx = ox + step * i - cx, dy = oy + step * j - cy; return [cx + dx * c - dy * s, cy + dx * s + dy * c]; };
   const key = (i, j) => name + i + ',' + j;
   for (const [i, j, r] of o.rb || []) RBG[key(i, j)] = makeRoundabout(...pos(i, j), r);
-  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if (!RBG[key(i, j)]) G[key(i, j)] = node(...pos(i, j));
+  const rows = o.rows || ny;
+  for (let i = 0; i < nx; i++) for (let j = 0; j < rows; j++) if (!RBG[key(i, j)]) G[key(i, j)] = node(...pos(i, j));
   const gn = (i, j, toward) => RBG[key(i, j)] ? rbEntry(RBG[key(i, j)], toward) : G[key(i, j)];
   const skipH = new Set(o.skipH || []), skipV = new Set(o.skipV || []);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx - 1; i++) {
+  for (let j = 0; j < rows; j++) for (let i = 0; i < nx - 1; i++) {
     if (skipH.has(i + ',' + j)) continue;
     GE[name + 'h' + i + ',' + j] = line(gn(i, j, pos(i + 1, j)), gn(i + 1, j, pos(i, j)), j === o.avRow ? 'avenue' : 'street');
   }
-  for (let i = 0; i < nx; i++) for (let j = 0; j < ny - 1; j++) {
+  for (let i = 0; i < nx; i++) for (let j = 0; j < rows - 1; j++) {
     if (skipV.has(i + ',' + j)) continue;
     GE[name + 'v' + i + ',' + j] = line(gn(i, j, pos(i, j + 1)), gn(i, j + 1, pos(i, j)), i === o.avCol ? 'avenue' : 'street');
   }
-  const g = { pos, nx, ny, bbox: [Math.min(pos(0, 0)[0], pos(0, ny - 1)[0]) - 60, Math.min(pos(0, 0)[1], pos(nx - 1, 0)[1]) - 60, Math.max(pos(nx - 1, 0)[0], pos(nx - 1, ny - 1)[0]) + 60, Math.max(pos(0, ny - 1)[1], pos(nx - 1, ny - 1)[1]) + 60] };
+  const ly = rows - 1;
+  const g = { pos, nx, ny, rows, bbox: [Math.min(pos(0, 0)[0], pos(0, ly)[0]) - 60, Math.min(pos(0, 0)[1], pos(nx - 1, 0)[1]) - 60, Math.max(pos(nx - 1, 0)[0], pos(nx - 1, ly)[0]) + 60, Math.max(pos(0, ly)[1], pos(nx - 1, ly)[1]) + 60] };
   GRIDS[name] = g;
   return g;
 }
@@ -168,16 +185,20 @@ function buildCity() {
   // district A: the old center, square blocks, a central square
   const A = grid('A', 2600, 2800, 9, 6, 400, 0, {
     rb: [[4, 2, 112], [1, 4, 74], [7, 1, 74]], avRow: 2, avCol: 4,
-    skipH: ['2,0', '6,5', '0,5', '6,1'], skipV: ['1,0', '5,3', '7,4', '3,1'],
+    skipH: ['2,0', '6,5', '7,5', '0,5', '6,1'], skipV: ['1,0', '5,3', '7,4', '3,1'],
   });
   // district B: east of the river, smaller blocks, turned along the coast
   const B = grid('B', 6900, 2700, 8, 6, 380, -8, {
-    rb: [[3, 3, 74], [6, 1, 74]], avRow: 3,
-    skipH: ['2,0', '5,4', '0,5'], skipV: ['4,1', '1,3', '6,0'],
+    rb: [[3, 3, 74], [6, 1, 74]], avRow: 3, rows: 5,
+    skipH: ['2,0', '5,4'], skipV: ['4,1', '1,3', '6,0'],
   });
   // two bridges between the districts
   GE.bridge1 = line(G['A8,1'], G['B0,1']);
   GE.bridge2 = line(G['A8,4'], G['B0,4']);
+  // short roads to parking lots
+  GE.parkW = line(G['A0,2'], node(2130, 3600));
+  GE.parkE = line(G['B0,2'], node(6450, P(G['B0,2'])[1]));
+  GE.parkE2 = line(G['B7,3'], node(P(G['B7,3'])[0] + 380, P(G['B7,3'])[1] + 20));
 
   // bypass highway with big roundabouts
   const hl = [0]; for (let i = 1; i < HWY.length; i++) hl.push(hl[i - 1] + dist(HWY[i - 1], HWY[i]));
@@ -205,6 +226,8 @@ function buildCity() {
   GE.linkE = curve(S('E'), bTop, [[7600, 2150]]);
   const E1 = node(10450, 3050);
   GE.linkF = curve(S('F'), E1, [[10550, 2600]]);
+  const TB = splitEdge(GE.linkF, 0.12).n, TS = node(10770, 2330);
+  GE.trainRd = curve(TB, TS, [[10680, 2325]]);
   GE.eastB = curve(G['B7,1'], E1, [[9900, 2950]]);
 
   // west suburbs: winding streets
@@ -216,13 +239,21 @@ function buildCity() {
   const W3 = node(600, 3500);
   GE.subD = curve(W2, W3, [[850, 3800]]);
   GE.subE = curve(W3, W1, [[900, 3100], [1400, 2950]]);
+  const LK = node(345, 3170);
+  GE.lakeRd = curve(W3, LK, [[470, 3330]], 'country');
 
   // waterfront boulevard, with streets coming down to it
   const blvY = x => coastY(x) - 240;
   const drops = [];
-  const drop = (from, type = 'street') => { const p = P(from); drops.push({ x: p[0], from, type }); };
-  for (const i of [0, 2, 4, 6, 8]) drop(G['A' + i + ',5'], i === 4 ? 'avenue' : 'street');
-  for (const i of [1, 3, 5, 7]) drop(G['B' + i + ',5']);
+  const drop = (from, prev, type = 'street') => {
+    // follow the street direction until it meets the boulevard
+    const p = P(from), q = P(prev), dx = p[0] - q[0], dy = p[1] - q[1];
+    let x = p[0];
+    for (let k = 0; k < 6; k++) x = p[0] + dx / dy * (blvY(x) - p[1]);
+    drops.push({ x, from, type });
+  };
+  for (const i of [0, 2, 4, 6, 8]) drop(G['A' + i + ',5'], G['A' + i + ',4'] ?? RBG['A' + i + ',4'], i === 4 ? 'avenue' : 'street');
+  for (const i of [1, 4, 5, 7]) drop(G['B' + i + ',4'], G['B' + i + ',3']);
   drops.push({ x: 300 }, { x: 1150, from: W2 }, { x: 11100, from: null, east: true });
   drops.sort((a, b) => a.x - b.x);
   let prev = null, k = 0;
@@ -259,7 +290,10 @@ function buildCity() {
   const PN = node(7150, 640);
   GE.picnicRd = curve(hwRb.E.north([7100, 500]), PN, [[7250, 1050]], 'country');
   const FM = node(380, 1380);
-  GE.farmRd = curve(hwRb.W.north([700, 1300]), FM, [[900, 1500], [620, 1450]], 'country');
+  // the farm road branches off the village road (not off the roundabout, where it ran along the highway)
+  const FB = splitEdge(GE.village, 0.3).n;
+  GE.farmRd = curve(FB, FM, [[1150, 1230], [750, 1300]], 'country');
+  FARM_PTS = edges[GE.farmRd].pts.slice();
 
   roundabouts.forEach(finishRoundabout);
 }
@@ -279,7 +313,7 @@ const POI_DEFS = [
   ['police', 'Полиция', 'police', '🚓', 'Av4,3', .5, 1, 160, 'Едем в полицию'],
   ['carwash', 'Мойка', 'car_wash', '🧽', 'Av8,3', .5, 1, 150, 'Едем на мойку'],
   ['hospital', 'Больница', 'hospital', '🏥', 'Bv2,2', .5, -1, 190, 'Едем в больницу'],
-  ['train', 'Вокзал', 'train_station', '🚂', 'Bh4,0', .5, -1, 210, 'Едем на вокзал'],
+  ['train', 'Вокзал', 'train_station', '🚂', 'trainRd', .85, 1, 210, 'Едем на вокзал'],
   ['cinema', 'Кино', 'cinema', '🎬', 'Bh1,3', .5, 1, 160, 'Едем в кино'],
   ['post', 'Почта', 'post_office', '✉️', 'Bh5,2', .5, 1, 145, 'Едем на почту'],
   ['stadium', 'Стадион', 'stadium', '⚽', 'Bv7,2', .5, -1, 380, 'Едем на стадион'],
@@ -306,16 +340,18 @@ const POI_DEFS = [
   ['marriott', 'Марриотт', 'marriott', '🏨', 'blv@3800', .5, -1, 300, 'Едем в Марриотт'],
   ['europe', 'Площадь Европы', 'europe_square', '⛲', 'Ah4,2', .5, 1, 290, 'Едем на площадь Европы'],
   ['mcdonalds', 'Макдональдс', 'mcdonalds', '🍔', 'Av4,1', .5, 1, 150, 'Едем в Макдональдс'],
+  ['resort', 'Курорт', 'lake_resort', '🏝️', 'lakeRd', .92, -1, 230, 'Едем на курорт'],
   ['castle', 'Замок', 'castle', '🏰', 'forest', .92, -1, 230, 'Едем в замок'],
 ];
 const POIS = [];
 // hand-placed spots for big pictures that need the whole block: [x, y (base), width]
-const POS_FIX = { europe: [4400, 3895, 270] };
+const POS_FIX = { europe: [4400, 3895, 270], train: [10905, 2445, 205], resort: [195, 3250, 240] };
 function placePois() {
   for (const [key, name, sprite, emoji, eref0, t, side, w, phrase] of POI_DEFS) {
     const eref = eref0.startsWith('blv@') ? blvEdgeAt(+eref0.slice(4)) : eref0;
     const eid = GE[eref];
     if (eid == null || edges[eid].dead) { console.warn('bad poi edge', key, eref); continue; }
+    if (!IMG[sprite]) continue;
     const e = edges[eid];
     const before = pointAlong(e.pts, Math.max(1, e.len * t - 10)), after = pointAlong(e.pts, e.len * t + 10);
     const { n, p } = splitEdge(eid, t);
@@ -329,7 +365,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -344,7 +380,16 @@ function loadSprites() {
 // ---------- decor and filler ----------
 const decor = [];   // billboard sprites {x,y,w,sprite}
 const segHash = new Map(), HCELL = 200;
+const RAILS = [
+  // east, along the highway
+  catmull([[11005, 2428], [11150, hwY(11150) + 330], ...[11600, 12200, 12900, 13600, 14300].map(x => [x, hwY(x) + 330])], 25),
+  // south along the east road, then east along the coast
+  catmull([[10935, 2470], [10870, 2800], [10780, 3150], [10950, 3700], [11200, 4250], [11450, coastY(11450) - 430], ...[12000, 12700, 13400, 14300].map(x => [x, coastY(x) - 430])], 25),
+];
 function hashRoads() {
+  for (const RAIL of RAILS) { const half = 40; for (let i = 1; i < RAIL.length; i++) { const a = RAIL[i - 1], b = RAIL[i];
+      for (let x = Math.floor((Math.min(a[0], b[0]) - half) / HCELL); x <= Math.floor((Math.max(a[0], b[0]) + half) / HCELL); x++) for (let y = Math.floor((Math.min(a[1], b[1]) - half) / HCELL); y <= Math.floor((Math.max(a[1], b[1]) + half) / HCELL); y++) {
+        const k = x + ',' + y; if (!segHash.has(k)) segHash.set(k, []); segHash.get(k).push([a, b, half]); } } }
   for (const e of edges) {
     if (e.dead) continue;
     const half = RT[e.type].cw / 2;
@@ -360,6 +405,8 @@ function hashRoads() {
   }
 }
 function roadClear(p, margin) {
+  for (const rb of roundabouts) if (Math.hypot(p[0] - rb.cx, p[1] - rb.cy) < rb.r + RT[rb.type].cw / 2 + margin) return false; // nothing on roundabout islands
+
   const cx = Math.floor(p[0] / HCELL), cy = Math.floor(p[1] / HCELL);
   for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++) {
     const list = segHash.get(x + ',' + y); if (!list) continue;
@@ -367,7 +414,7 @@ function roadClear(p, margin) {
   }
   return true;
 }
-const FIELDS = [[-200, 650, 450, 1050, '#E6C86A'], [600, 900, 1000, 1250, '#C9A86B'], [1500, 650, 2100, 950, '#D9C46A'], [5200, 450, 5800, 800, '#E6C86A'], [10000, 900, 10500, 1300, '#D9C46A'], [11300, 1300, 11900, 1700, '#C9A86B']];
+const FIELDS = [[-200, 650, 450, 1050, '#E6C86A'], [600, 790, 1000, 1140, '#C9A86B'], [1500, 650, 2100, 950, '#D9C46A'], [5200, 450, 5800, 800, '#E6C86A'], [10000, 900, 10500, 1300, '#D9C46A'], [11300, 1300, 11900, 1700, '#C9A86B']];
 function spriteClear(q, w, sprite) {
   const im = IMG[sprite], h = im ? w * im.height / im.width : w;
   for (const fx of [-0.46, 0, 0.46]) for (const fy of [-0.8, -0.5, -0.2, 0.15]) if (!roadClear([q[0] + fx * w, q[1] + fy * h], 3)) return false;
@@ -389,7 +436,8 @@ const ZONES = {
 const inRect = (p, r) => p[0] > r[0] && p[0] < r[2] && p[1] > r[1] && p[1] < r[3];
 const ellK = p => ((p[0] - ELL.cx) / ELL.rx) ** 2 + ((p[1] - ELL.cy) / ELL.ry) ** 2;
 function noise(x, y) { return Math.sin(x / 530) * Math.cos(y / 410) + 0.6 * Math.sin((x + y) / 290) + 0.4 * Math.cos((x - 2 * y) / 700); }
-function buildDecor() {
+function buildDecor() { buildDecor0(); for (let i = decor.length - 1; i >= 0; i--) { const d = decor[i]; const im = IMG[d.sprite], h = im ? d.w * im.height / im.width : d.w; if (SIGNS.some(g => Math.abs(g.x - d.x) < d.w * 0.5 + 16 && g.y > d.y - 0.82 * h - 10 && g.y - 50 < d.y + 0.18 * h)) decor.splice(i, 1); } }
+function buildDecor0() {
   const R = rng(7);
   const has = n => !!IMG[n];
   const pick = list => { const ok = list.filter(has); return ok.length ? ok[Math.floor(R() * ok.length)] : null; };
@@ -489,9 +537,17 @@ function buildDecor() {
   scatter('beehives', 70, 2, around(1150, 750, 550));
   scatter('apple_tree', 66, 10, around(1500, 500, 300));
   // tents by the lakes, rocks and deer in the woods
-  for (const [cx, cy, rx, ry] of LAKES) scatter('tent', 60, 2, () => { const a = R() * TAU; return [cx + Math.cos(a) * (rx + 90), cy + Math.sin(a) * (ry + 90)]; });
+  for (const L of LAKES) { const [cx, cy, rx, ry] = L.poly ? [L.cx, L.cy, L.rx, L.ry] : L; scatter('tent', 60, 2, () => { const a = R() * TAU; return [cx + Math.cos(a) * (rx + 90), cy + Math.sin(a) * (ry + 90)]; }); }
   scatter('rocks', 70, 14, () => [lerp(CITY.minX, CITY.maxX, R()), lerp(CITY.minY, hwY(lerp(CITY.minX, CITY.maxX, .5)) - 150, R())], 400);
   scatter('deer', 64, 10, () => [lerp(CITY.minX, CITY.maxX, R()), lerp(CITY.minY, 1300, R())], 400);
+  // a grove between the farm road and the highway
+  const farmY = x => { for (let i = 1; i < FARM_PTS.length; i++) { const a = FARM_PTS[i - 1], b = FARM_PTS[i]; if ((x - a[0]) * (x - b[0]) <= 0) return lerp(a[1], b[1], (x - a[0]) / ((b[0] - a[0]) || 1)); } return null; };
+  for (const sp of ['tree_2', 'tree_1', 'tree_3', 'tree_2']) scatter(sp, 66, 9, () => {
+    const x = lerp(420, 1380, R()), fy = farmY(x);
+    return fy == null ? [-9999, -9999] : [x, lerp(fy + 75, hwY(x) - 95, R())];
+  }, 200);
+  // ...and further west, past the end of the farm road
+  for (const sp of ['tree_2', 'tree_1', 'tree_3', 'tree_2']) scatter(sp, 66, 10, () => { const x = lerp(-550, 420, R()); return [x, lerp(1480, hwY(x) - 95, R())]; }, 200);
   // a few building sites in town
   scatter('crane', 120, 4, () => [lerp(1500, 11000, R()), lerp(hwY(6000) + 300, 4700, R())], 300);
   // countryside: dense forests in patches around fields and lakes
@@ -506,6 +562,244 @@ function buildDecor() {
   }
 }
 
+// ---------- parking lots ----------
+// rough spots from Stanislav's map; each one slides to the nearest free place next to the roads
+const PARKINGS = [
+  { sp: 'parking_lot_big', w: 330, at: [2050, 3700] },
+  { sp: 'parking_lot_medium', w: 240, at: [5572, 2650] },
+  { sp: 'parking_lot_medium', w: 240, at: [7650, 2930] },
+  { sp: 'parking_lot_medium', w: 240, at: [6470, 3500] },
+  { sp: 'parking_lot_small', w: 150, at: [3613, 3045] },
+  { sp: 'parking_lot_small', w: 150, at: [6520, 3820] },
+  { sp: 'parking_lot_small', w: 150, at: [6080, 4300] },
+  { sp: 'parking_lot_small', w: 150, at: [5202, 4769] },
+  { sp: 'parking_lot_small', w: 150, at: [2457, 4896] },
+  { sp: 'parking_lot_medium', w: 240, at: [8850, 2480] },
+  { sp: 'parking_lot_medium', w: 240, at: [9960, 3800] },
+  { sp: 'parking_lot_small', w: 150, at: [9800, 3790] },
+];
+const footprint = (x, y, w, sp) => { const im = IMG[sp], h = im ? w * im.height / im.width : w; return [x - w / 2, y - 0.82 * h, x + w / 2, y + 0.18 * h]; };
+const overlaps = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+// flat top-down lots lie on the ground: turned so the driveway (right side of the picture) meets the road
+const GROUND_LOTS = [];
+// where the driveway is in each picture: right edge (fraction of width from centre), top and bottom (fraction of height)
+const LOT_DRIVE = { parking_lot_small: [0.5, -0.30, 0.38], parking_lot_medium: [0.495, -0.065, 0.127], parking_lot_big: [0.5, -0.146, 0.159] };
+function placeGroundLot(pk, placed) {
+  const im = IMG[pk.sp]; if (!im) return false;
+  const W = pk.w, H = W * im.height / im.width;
+  const rd = nearestRoad(pk.at, 700); if (!rd) return false;
+  const e = edges[rd.eid], asph = RT[e.type].w / 2;
+  for (const shift of [0, 40, -40, 80, -80, 130, -130, 180, -180, 240, -240]) {
+    const d0 = clamp(rd.t * e.len + shift, 30, e.len - 30);
+    const p = pointAlong(e.pts, d0), a = pointAlong(e.pts, Math.max(0, d0 - 8)), b = pointAlong(e.pts, Math.min(e.len, d0 + 8));
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+    let n = [-dy / l, dx / l]; if ((pk.at[0] - p[0]) * n[0] + (pk.at[1] - p[1]) * n[1] < 0) n = [-n[0], -n[1]];
+    const ang = Math.atan2(-n[1], -n[0]); // picture +x (driveway) points back to the road
+    const ux = [Math.cos(ang), Math.sin(ang)], uy = [-Math.sin(ang), Math.cos(ang)];
+    // the driveway end (0.448 W right of the picture centre) reaches into the road asphalt
+    for (let gap = 0; gap <= 0; gap += 10) {
+      const D = LOT_DRIVE[pk.sp], off = asph - 3 + W * D[0];
+      const c = [p[0] + n[0] * off, p[1] + n[1] * off];
+      let ok = true;
+      for (let i = 0; i <= 4 && ok; i++) for (let j = 0; j <= 4 && ok; j++) {
+        const fx = -0.48 + i * 0.21, fy = -0.48 + j * 0.24;
+        const q = [c[0] + ux[0] * fx * W + uy[0] * fy * H, c[1] + ux[1] * fx * W + uy[1] * fy * H];
+        if (inWater(q) || !roadClear(q, -1)) ok = false;
+      }
+      if (!ok) continue;
+      const r = Math.max(W, H) * 0.6, f = [c[0] - r, c[1] - r, c[0] + r, c[1] + r];
+      if (POIS.some(o => overlaps(f, footprint(o.x, o.y, o.w, o.sprite))) || placed.some(o => overlaps(f, o))) continue;
+      placed.push(f);
+      for (let k = decor.length - 1; k >= 0; k--) { const d = decor[k]; if (overlaps([c[0] - r * 0.85, c[1] - r * 0.85, c[0] + r * 0.85, c[1] + r * 0.85], footprint(d.x, d.y, d.w, d.sprite))) decor.splice(k, 1); }
+      GROUND_LOTS.push({ x: c[0], y: c[1], ang, W, H, sp: pk.sp, road: RT[e.type].color, D });
+      // upright P sign on the curb next to the driveway
+      const lx = 0.46 * W, ly = D[1] * H - 10;
+      SIGNS.push({ t: 'park', x: c[0] + ux[0] * lx + uy[0] * ly, y: c[1] + ux[1] * lx + uy[1] * ly });
+      return true;
+    }
+  }
+  return false;
+}
+function drawGroundLots() {
+  for (const g of GROUND_LOTS) {
+    const im = IMG[g.sp]; if (!im) continue;
+    ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.ang); ctx.drawImage(im, -g.W / 2, -g.H / 2, g.W, g.H);
+    // asphalt joint: the driveway runs straight into the road, no curb or outline between them
+    const [xr, a0, a1] = g.D, y0 = a0 * g.H + 3, y1 = a1 * g.H - 3;
+    ctx.fillStyle = g.road; ctx.fillRect(xr * g.W - 10, y0, 24, y1 - y0);
+    ctx.restore();
+  }
+}
+function placeParkings() {
+  const placed = [];
+  for (const pk of PARKINGS) {
+    if (LOT_DRIVE[pk.sp]) { if (!placeGroundLot(pk, placed)) console.warn('no room for parking', pk.at); continue; }
+    if (!IMG[pk.sp]) continue;
+    // snap to the nearest road: try spots along it and slide each one off the road until the picture fits
+    let best = null;
+    const rd = nearestRoad(pk.at, 700);
+    if (rd) {
+      const e = edges[rd.eid], half = RT[e.type].cw / 2;
+      for (const shift of [0, 40, -40, 80, -80, 120, -120, 170, -170]) {
+        const d0 = clamp(rd.t * e.len + shift, 20, e.len - 20);
+        const p = pointAlong(e.pts, d0), a = pointAlong(e.pts, Math.max(0, d0 - 8)), b = pointAlong(e.pts, Math.min(e.len, d0 + 8));
+        const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+        let n = [-dy / l, dx / l]; if ((pk.at[0] - p[0]) * n[0] + (pk.at[1] - p[1]) * n[1] < 0) n = [-n[0], -n[1]];
+        const q = placeBeside(p, n, half, pk.w, pk.sp, 220);
+        if (!q) continue;
+        const f = footprint(q[0], q[1], pk.w, pk.sp);
+        if (POIS.some(o => overlaps(f, footprint(o.x, o.y, o.w, o.sprite))) || placed.some(o => overlaps(f, o))) continue;
+        best = q; break;
+      }
+    }
+    if (!best) { console.warn('no room for parking', pk.at); continue; }
+    const f = footprint(best[0], best[1], pk.w, pk.sp);
+    placed.push(f);
+    for (let i = decor.length - 1; i >= 0; i--) { const d = decor[i]; if (overlaps(f, footprint(d.x, d.y, d.w, d.sprite))) decor.splice(i, 1); }
+    decor.push({ x: best[0], y: best[1], w: pk.w, sprite: pk.sp });
+  }
+}
+
+// ---------- boats ----------
+// a few boats sail along the coast at different distances, each its own way and speed
+const BOATS = [
+  { sp: 'boat_sail', w: 95, off: 300, v: 30, dir: 1, x: 1400 },
+  { sp: 'boat_ferry', w: 120, off: 560, v: 42, dir: -1, x: 3600 },
+  { sp: 'boat_fishing', w: 95, off: 420, v: 20, dir: -1, x: 6200 },
+  { sp: 'boat_yacht', w: 100, off: 700, v: 60, dir: 1, x: 8800 },
+];
+function drawBoats(dt) {
+  for (const b of BOATS) {
+    const im = IMG[b.sp]; if (!im) continue;
+    b.x += b.dir * b.v * dt;
+    if (b.x > CITY.maxX + 1200) b.x = CITY.minX - 1200; else if (b.x < CITY.minX - 1200) b.x = CITY.maxX + 1200;
+    const y = coastY(b.x) + b.off + 25 * Math.sin(b.x / 900);
+    const y2 = coastY(b.x + b.dir * 20) + b.off + 25 * Math.sin((b.x + b.dir * 20) / 900);
+    const h = Math.atan2(y2 - y, b.dir * 20);
+    const len = b.w * im.height / im.width;
+    ctx.save(); ctx.translate(b.x, y); ctx.rotate(h + Math.PI / 2);
+    // wake behind the stern
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (let k = 1; k <= 3; k++) { const yy = len / 2 + k * 26; ctx.globalAlpha = 1 - k * 0.28; ctx.beginPath(); ctx.moveTo(-b.w * 0.3 - k * 5, yy); ctx.quadraticCurveTo(0, yy - 7, b.w * 0.3 + k * 5, yy); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(im, -b.w / 2, -len / 2, b.w, len);
+    ctx.restore();
+  }
+}
+
+// ---------- train ----------
+// leaves the station on one line, goes off the map, comes back, waits, then takes the other line
+const RAIL_LEN = RAILS.map(R => { const c = [0]; for (let i = 1; i < R.length; i++) c.push(c[i - 1] + dist(R[i - 1], R[i])); return c; });
+function railAt(k, s) {
+  const R = RAILS[k], C = RAIL_LEN[k], L = C[C.length - 1];
+  s = clamp(s, 0, L);
+  let i = 1; while (i < C.length - 1 && C[i] < s) i++;
+  const a = R[i - 1], b = R[i], t = (s - C[i - 1]) / ((C[i] - C[i - 1]) || 1);
+  return { x: lerp(a[0], b[0], t), y: lerp(a[1], b[1], t), h: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+}
+const TRAIN_HOME = 820; // stop point: the whole train stands next to the station
+const train = { line: 0, s: TRAIN_HOME, v: 0, dir: 1, wait: 6, cars: 4 };
+function drawTrain(dt) {
+  const eng = IMG.train_engine, car = IMG.train_car; if (!eng || !car) return;
+  const L = RAIL_LEN[train.line][RAIL_LEN[train.line].length - 1];
+  const W = 50, gap = 6, len = W * eng.height / eng.width, clen = W * car.height / car.width;
+  if (train.wait > 0) { train.wait -= dt; if (train.wait <= 0 && train.dir < 0) { train.dir = 1; train.line = 1 - train.line; train.s = TRAIN_HOME; } }
+  else {
+    const end = train.dir > 0 ? L + 600 : TRAIN_HOME, left = Math.abs(end - train.s);
+    const vmax = 70, vt = train.dir < 0 ? Math.min(vmax, Math.sqrt(2 * 6 * left) + 2) : vmax;
+    train.v = train.v < vt ? Math.min(vt, train.v + 12 * dt) : vt;
+    train.s += train.dir * train.v * dt;
+    if (train.dir > 0 && train.s >= end) { train.dir = -1; train.wait = 4; train.v = 0; }
+    else if (train.dir < 0 && train.s <= end) { train.s = end; train.v = 0; train.wait = 8 + Math.random() * 6; }
+  }
+  // engine first, then cars behind it, each turned along the track
+  const parts = [[eng, len]]; for (let c = 0; c < train.cars; c++) parts.push([car, clen]);
+  let off = 0;
+  for (const [im, l] of parts) {
+    const sc = train.s - train.dir * (off + l / 2);
+    off += l + gap;
+    if (sc < 0) continue;
+    const p = railAt(train.line, sc);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.h + (train.dir > 0 ? Math.PI / 2 : -Math.PI / 2));
+    ctx.drawImage(im, -W / 2, -l / 2, W, l); ctx.restore();
+  }
+}
+
+// ---------- road signs ----------
+const SIGNS = [];
+const KID_PLACES = new Set(['kindergarten', 'school', 'park', 'library', 'toys', 'icecream', 'circus', 'cinema', 'dino', 'home']);
+// one pedestrian-crossing sign per crossing with zebras, on a free corner
+function buildSigns() {
+  for (const n of nodes) {
+    const es = n.edges.map(i => edges[i]).filter(e => !e.dead);
+    if (es.length < 3 || es.some(e => e.ring)) continue;
+    if (!es.some(e => (e.type === 'street' || e.type === 'avenue') && e.len >= 200)) continue;
+    // only where children walk: next to kid places, and where avenues cross
+    const nearKids = POIS.some(q => KID_PLACES.has(q.key) && Math.hypot(q.x - n.x, q.y - n.y) < 450);
+    const avenue = es.filter(e => e.type === 'avenue').length >= 1 && es.some(e => e.type === 'street');
+    if (!nearKids && !avenue) continue;
+    const half = Math.max(...es.map(e => RT[e.type].cw / 2));
+    for (const [dx, dy] of [[1, -1], [-1, -1], [1, 1], [-1, 1]]) {
+      const p = [n.x + dx * (half + 22), n.y + dy * (half + 22)];
+      const onPoi = POIS.some(q => { const im = IMG[q.sprite], h = im ? q.w * im.height / im.width : q.w; return Math.abs(p[0] - q.x) < q.w * 0.5 + 16 && p[1] > q.y - 0.82 * h - 10 && p[1] - 50 < q.y + 0.18 * h; });
+      if (roadClear(p, 8) && !inWater(p) && !onPoi) { SIGNS.push({ t: 'ped', x: p[0], y: p[1] }); break; }
+    }
+  }
+}
+function signShape(t, sz, time) {
+  const r = sz / 2, k = Math.max(2, sz * 0.09);
+  ctx.lineWidth = k; ctx.strokeStyle = '#2B2B3A';
+  if (t === 'stop') {
+    ctx.fillStyle = '#E53935'; ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + i * Math.PI / 4; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = `900 ${sz * 0.3}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('STOP', 0, 1);
+  } else if (t === 'ped') {
+    ctx.fillStyle = '#1E6FD9'; roundRect(-r, -r, sz, sz, sz * 0.12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -r * 0.75); ctx.lineTo(r * 0.75, r * 0.6); ctx.lineTo(-r * 0.75, r * 0.6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2B2B3A'; ctx.lineWidth = Math.max(1.5, sz * 0.06); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -r * 0.18, sz * 0.07, 0, TAU); ctx.fillStyle = '#2B2B3A'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.05); ctx.lineTo(0, r * 0.22); ctx.moveTo(0, r * 0.22); ctx.lineTo(-r * 0.2, r * 0.48); ctx.moveTo(0, r * 0.22); ctx.lineTo(r * 0.2, r * 0.48); ctx.moveTo(-r * 0.22, r * 0.05); ctx.lineTo(r * 0.22, r * 0.05); ctx.stroke();
+  } else if (t === 'speed') {
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    ctx.lineWidth = sz * 0.14; ctx.strokeStyle = '#E53935'; ctx.beginPath(); ctx.arc(0, 0, r - sz * 0.07, 0, TAU); ctx.stroke();
+    ctx.lineWidth = k; ctx.strokeStyle = '#2B2B3A'; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#2B2B3A'; ctx.font = `900 ${sz * 0.42}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('40', 0, 1);
+  } else if (t === 'ring') {
+    ctx.fillStyle = '#1E6FD9'; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = sz * 0.1; ctx.fillStyle = '#fff';
+    for (let i = 0; i < 3; i++) {
+      const a0 = i * TAU / 3 + 0.3, a1 = a0 + 1.4, rr = r * 0.5;
+      ctx.beginPath(); ctx.arc(0, 0, rr, a0, a1); ctx.stroke();
+      const hx = Math.cos(a1) * rr, hy = Math.sin(a1) * rr, ta = a1 + Math.PI / 2;
+      ctx.beginPath(); ctx.moveTo(hx + Math.cos(ta) * sz * 0.14, hy + Math.sin(ta) * sz * 0.14);
+      ctx.lineTo(hx + Math.cos(ta + 2.3) * sz * 0.12, hy + Math.sin(ta + 2.3) * sz * 0.12);
+      ctx.lineTo(hx + Math.cos(ta - 2.3) * sz * 0.12, hy + Math.sin(ta - 2.3) * sz * 0.12); ctx.closePath(); ctx.fill();
+    }
+  } else if (t === 'park') {
+    ctx.fillStyle = '#1E6FD9'; roundRect(-r, -r, sz, sz, sz * 0.12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = `900 ${sz * 0.72}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P', 0, sz * 0.04);
+  }
+}
+function drawSign(sg, sx, sy, s, time) {
+  const post = 40 * s, sz = 24 * s;
+  ctx.save(); ctx.translate(sx, sy);
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 0, 7 * s, 3 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#5B6270'; ctx.strokeStyle = '#2B2B3A'; ctx.lineWidth = Math.max(1.5, 1.6 * s);
+  ctx.fillRect(-1.8 * s, -post, 3.6 * s, post); ctx.strokeRect(-1.8 * s, -post, 3.6 * s, post);
+  if (sg.t === 'light') {
+    const bw = 14 * s, bh = 36 * s, top = -post - bh + 6 * s;
+    ctx.fillStyle = '#2F3440'; roundRect(-bw / 2, top, bw, bh, 4 * s); ctx.fill(); ctx.stroke();
+    const ph = Math.floor((time + sg.x / 300) % 9), on = ph < 4 ? 2 : ph < 5 ? 1 : 0; // green 4s, yellow 1s, red 4s
+    const cols = ['#FF3B30', '#FFCC00', '#34C759'];
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i === on ? cols[i] : '#4A505C';
+      ctx.beginPath(); ctx.arc(0, top + bh * (0.2 + 0.3 * i), 4.2 * s, 0, TAU); ctx.fill();
+      if (i === on) { ctx.globalAlpha = .3; ctx.beginPath(); ctx.arc(0, top + bh * (0.2 + 0.3 * i), 7.5 * s, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+    }
+  } else { ctx.translate(0, -post - sz * 0.35); signShape(sg.t, sz, time); }
+  ctx.restore();
+}
 // ---------- routing ----------
 function dirInfo(eid, dir) {
   const e = edges[eid];
@@ -841,11 +1135,12 @@ function drawGround(view) {
   }
   ctx.lineCap = 'round';
   // lakes
-  LAKES.forEach((L, k) => {
-    const pts = lakeShape(L, k);
-    ctx.fillStyle = '#E9D9A6'; ctx.strokeStyle = '#E9D9A6'; ctx.lineWidth = 36; ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#5BB8F5'; ctx.fill();
-  });
+  // all shores first, then all water, so lakes that touch merge into one
+  const lakePath = (L, k) => { const pts = lakeShape(L, k); ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); };
+  ctx.fillStyle = '#E9D9A6'; ctx.strokeStyle = '#E9D9A6'; ctx.lineWidth = 36;
+  LAKES.forEach((L, k) => { lakePath(L, k); ctx.fill(); ctx.stroke(); });
+  ctx.fillStyle = '#5BB8F5';
+  LAKES.forEach((L, k) => { lakePath(L, k); ctx.fill(); });
   // park
   const pk = ZONES.park;
   ctx.fillStyle = '#86CC6A'; roundRect(pk[0], pk[1], pk[2] - pk[0], pk[3] - pk[1], 30); ctx.fill();
@@ -878,6 +1173,12 @@ function drawRoads(view) {
   }
   for (const e of vis) { ctx.strokeStyle = RT[e.type].casing; ctx.lineWidth = RT[e.type].cw; strokePts(e.pts); }
   for (const e of vis) { ctx.strokeStyle = RT[e.type].color; ctx.lineWidth = RT[e.type].w; strokePts(e.pts); }
+  // railway: ballast, sleepers, two rails, buffer stop at the station end
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#CDBFA6'; ctx.lineWidth = 50; RAILS.forEach(strokePts);
+  ctx.strokeStyle = '#8B5E3C'; ctx.lineWidth = 34; ctx.setLineDash([7, 15]); RAILS.forEach(strokePts); ctx.setLineDash([]);
+  ctx.strokeStyle = '#5B6270'; ctx.lineWidth = 5; for (const R of RAILS) { strokePts(offsetPts(R, -11)); strokePts(offsetPts(R, 11)); }
+  ctx.lineCap = 'round';
   // roundabout islands
   for (const rb of roundabouts) {
     const half = RT[rb.type].w / 2;
@@ -1002,8 +1303,10 @@ function drawBillboards() {
     if (sx < -M || sx > W + M || sy < -M || sy > H + M) continue;
     items.push({ sy, sx, wpx: p.w * cam.scale, name: p.sprite, poi: p });
   }
+  if (cam.scale > 0.22) for (const g of SIGNS) { const [sx, sy] = w2s(g.x, g.y); if (sx > -60 && sx < W + 60 && sy > -60 && sy < H + 120) items.push({ sy, sx, sign: g }); }
   items.sort((a, b) => a.sy - b.sy);
   for (const it of items) {
+    if (it.sign) { drawSign(it.sign, it.sx, it.sy, cam.scale, performance.now() / 1000); continue; }
     const r = drawSprite(it.name, it.sx, it.sy, it.wpx, it.emoji);
     if (it.poi) it.poi.rect = r;
     if (it.dec) it.dec.rect = r;
@@ -1240,7 +1543,6 @@ function burnFuel(meters) {
   const before = fuel;
   fuel = Math.max(FUEL_MIN, fuel - meters / FUEL_METERS);
   const who = kidName ? kidName + ', ' : '';
-  if (before > 0.5 && fuel <= 0.5) say(cap(who + 'бензина осталось полбака'));
   if (before > 0.15 && fuel <= 0.15) say(cap(who + 'бензин заканчивается! Поехали на заправку!'));
   if (performance.now() - fuelSaved > 3000) { fuelSaved = performance.now(); saveFuel(); }
 }
@@ -1502,6 +1804,9 @@ function frame(now) {
   const view = [Math.min(c0[0], c1[0], c2[0], c3[0]), Math.min(c0[1], c1[1], c2[1], c3[1]), Math.max(c0[0], c1[0], c2[0], c3[0]), Math.max(c0[1], c1[1], c2[1], c3[1])];
   drawGround(view);
   drawRoads(view);
+  drawGroundLots();
+  drawTrain(dt);
+  drawBoats(dt);
   drawRoute();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   drawBillboards();
@@ -1520,8 +1825,10 @@ async function boot() {
   await loadSprites();
   hashRoads();
   placePois();
+  // buildSigns(); // road signs: off for now
   computeBridges();
   buildDecor();
+  placeParkings();
   const home = POIS.find(p => p.key === 'home');
   car.node = home.node; car.x = nodes[home.node].x; car.y = nodes[home.node].y + RT.street.lane; car.h = Math.PI;
   cam.x = tgt.x = car.x; cam.y = tgt.y = car.y; cam.scale = tgt.scale = baseScale();
