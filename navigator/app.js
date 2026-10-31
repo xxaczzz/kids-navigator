@@ -254,6 +254,12 @@ function buildCity() {
   GE.airport = curve(N('E'), AE, [[7700, 1000], [8300, 1050]], 'avenue');
   const FO = node(11000, 900);
   GE.forest = curve(N('F'), FO, [[10500, 1400]], 'country');
+  const CM = node(3300, 430);
+  GE.campRd = curve(AP, CM, [[2900, 260]], 'country');
+  const PN = node(7150, 640);
+  GE.picnicRd = curve(hwRb.E.north([7100, 500]), PN, [[7250, 1050]], 'country');
+  const FM = node(380, 1380);
+  GE.farmRd = curve(hwRb.W.north([700, 1300]), FM, [[900, 1500], [620, 1450]], 'country');
 
   roundabouts.forEach(finishRoundabout);
 }
@@ -283,8 +289,27 @@ const POI_DEFS = [
   ['grandma', 'Бабушка', 'grandma', '👵', 'grandma', .85, 1, 145, 'Едем к бабушке'],
   ['zoo', 'Зоопарк', 'zoo', '🦒', 'zoo', .85, 1, 210, 'Едем в зоопарк'],
   ['lighthouse', 'Маяк', 'lighthouse', '🗼', 'cape', .92, 1, 130, 'Едем к маяку'],
+  ['orbi', 'Орби Сити', 'orbi_city', '🏙️', 'blv@3000', .5, -1, 340, 'Едем в Орби Сити'],
+  ['beach', 'Пляж', 'beach', '🏖️', 'blv@5400', .5, 1, 170, 'Едем на пляж'],
+  ['port', 'Пристань', 'port', '⛵', 'blv@6600', .5, 1, 170, 'Едем на пристань'],
+  ['aquapark', 'Аквапарк', 'aquapark', '💦', 'blv@10300', .5, -1, 240, 'Едем в аквапарк'],
+  ['bakery', 'Пекарня', 'bakery', '🥖', 'Ah2,1', .5, 1, 130, 'Едем в пекарню'],
+  ['library', 'Библиотека', 'library', '📚', 'Av3,3', .5, 1, 160, 'Едем в библиотеку'],
+  ['circus', 'Цирк', 'circus', '🎪', 'Ah7,3', .5, 1, 170, 'Едем в цирк'],
+  ['toys', 'Игрушки', 'toy_shop', '🧸', 'Bh2,2', .5, 1, 130, 'Едем за игрушками'],
+  ['dino', 'Динозавры', 'dino_museum', '🦖', 'Bv5,3', .5, 1, 190, 'Едем к динозаврам'],
+  ['vet', 'Ветклиника', 'vet', '🐾', 'subB', .5, 1, 130, 'Едем в ветклинику'],
+  ['farm', 'Ферма', 'farm', '🐄', 'farmRd', .9, 1, 320, 'Едем на ферму'],
+  ['camp', 'Лагерь', 'camp', '🏕️', 'campRd', .85, -1, 300, 'Едем в лагерь'],
+  ['picnic', 'Пикник', 'picnic', '🧺', 'picnicRd', .9, -1, 160, 'Едем на пикник'],
+  ['marriott', 'Марриотт', 'marriott', '🏨', 'blv@3800', .5, -1, 300, 'Едем в Марриотт'],
+  ['europe', 'Площадь Европы', 'europe_square', '⛲', 'Ah4,2', .5, 1, 290, 'Едем на площадь Европы'],
+  ['mcdonalds', 'Макдональдс', 'mcdonalds', '🍔', 'Av4,1', .5, 1, 150, 'Едем в Макдональдс'],
+  ['castle', 'Замок', 'castle', '🏰', 'forest', .92, -1, 230, 'Едем в замок'],
 ];
 const POIS = [];
+// hand-placed spots for big pictures that need the whole block: [x, y (base), width]
+const POS_FIX = { europe: [4400, 3895, 270] };
 function placePois() {
   for (const [key, name, sprite, emoji, eref0, t, side, w, phrase] of POI_DEFS) {
     const eref = eref0.startsWith('blv@') ? blvEdgeAt(+eref0.slice(4)) : eref0;
@@ -297,13 +322,14 @@ function placePois() {
     const right = [-d[1] / l, d[0] / l];
     const nrm = [right[0] * side, right[1] * side];
     const q = placeBeside(p, nrm, RT[e.type].cw / 2, w, sprite, 420) || [p[0] + nrm[0] * (RT[e.type].cw / 2 + w * 0.5), p[1] + nrm[1] * (RT[e.type].cw / 2 + w * 0.5)];
-    POIS.push({ key, name, sprite, emoji, node: n, x: q[0], y: q[1], w, phrase });
+    const fix = POS_FIX[key];
+    POIS.push({ key, name, sprite, emoji, node: n, x: fix ? fix[0] : q[0], y: fix ? fix[1] : q[1], w: fix ? fix[2] : w, phrase });
   }
 }
 
 // ---------- sprites ----------
 const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
-  'apartment_1', 'apartment_2', 'office_tower', ...new Set(POI_DEFS.map(p => p[2]))];
+  'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
   return Promise.all(SPRITES.map(n => new Promise(res => {
@@ -350,7 +376,7 @@ function spriteClear(q, w, sprite) {
 function placeBeside(p, n, half, w, sprite, maxOff = 320) {
   for (let off = half + 12; off < half + maxOff; off += 10) {
     const q = [p[0] + n[0] * off, p[1] + n[1] * off];
-    if (spriteClear(q, w, sprite)) return q;
+    if (spriteClear(q, w, sprite) && ![-0.4, 0, 0.4].some(f => inWater([q[0] + f * w, q[1]]))) return q;
   }
   return null;
 }
@@ -434,6 +460,38 @@ function buildDecor() {
       put(q, tw, s);
     }
   }
+  // fountains on the small roundabout islands
+  if (has('fountain')) for (const rb of roundabouts) if (rb.type === 'ring' && rb.r <= 80) put([rb.cx, rb.cy + 18], 58, 'fountain');
+  const scatter = (sprite, w, n, area, tries = 60) => {
+    if (!has(sprite)) return;
+    for (let k = 0, t = 0; k < n && t < tries; t++) {
+      const p = area();
+      if (inWater(p) || nearCoast(p) || inLake(p, 30) || (sprite === 'rocks' || sprite === 'deer' || sprite === 'tent') && inField(p) || !spriteClear(p, w, sprite) || nearPoi(p, 30) || !free(p, w * 0.45)) continue;
+      put(p, w, sprite); k++;
+    }
+  };
+  const around = (cx, cy, r) => () => { const a = R() * TAU, d = Math.sqrt(R()) * r; return [cx + Math.cos(a) * d, cy + Math.sin(a) * d]; };
+  const inRectP = (f, pad = 30) => () => [lerp(f[0] + pad, f[2] - pad, R()), lerp(f[1] + pad, f[3] - pad, R())];
+  // fields: haystacks, a windmill and a tractor
+  for (const f of FIELDS) {
+    scatter('haystack', 60, 2, inRectP(f));
+    scatter('tractor', 70, 1, inRectP(f));
+    scatter('windmill', 110, 1, () => [f[R() < .5 ? 0 : 2] + (R() - .5) * 60, lerp(f[1], f[3], R())]);
+  }
+  // meadows with animals around the farm and the village
+  scatter('cows', 80, 3, around(500, 1500, 450));
+  scatter('sheep', 80, 3, around(700, 1000, 500));
+  scatter('cows', 80, 2, around(10300, 1100, 500));
+  scatter('sheep', 80, 2, around(11600, 1500, 400));
+  // village: beehives and an apple orchard
+  scatter('beehives', 70, 2, around(1150, 750, 550));
+  scatter('apple_tree', 66, 10, around(1500, 500, 300));
+  // tents by the lakes, rocks and deer in the woods
+  for (const [cx, cy, rx, ry] of LAKES) scatter('tent', 60, 2, () => { const a = R() * TAU; return [cx + Math.cos(a) * (rx + 90), cy + Math.sin(a) * (ry + 90)]; });
+  scatter('rocks', 70, 14, () => [lerp(CITY.minX, CITY.maxX, R()), lerp(CITY.minY, hwY(lerp(CITY.minX, CITY.maxX, .5)) - 150, R())], 400);
+  scatter('deer', 64, 10, () => [lerp(CITY.minX, CITY.maxX, R()), lerp(CITY.minY, 1300, R())], 400);
+  // a few building sites in town
+  scatter('crane', 120, 4, () => [lerp(1500, 11000, R()), lerp(hwY(6000) + 300, 4700, R())], 300);
   // countryside: dense forests in patches around fields and lakes
   for (let x = CITY.minX; x < CITY.maxX; x += 78) for (let y = CITY.minY; y < CITY.maxY; y += 78) {
     const p = [x + (R() - .5) * 50, y + (R() - .5) * 50];
@@ -551,6 +609,30 @@ function maneuvers(route) {
     if (m) { m.node = n; list.push(m); }
   }
   return list;
+}
+
+// nearest point on any road; returns {eid, t, p, d}
+function nearestRoad(q, maxD = 1e9) {
+  let best = null;
+  for (const e of edges) {
+    if (e.dead) continue;
+    let acc = 0;
+    for (let i = 1; i < e.pts.length; i++) {
+      const a = e.pts[i - 1], b = e.pts[i], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy, l = Math.sqrt(l2) || 1;
+      const u = l2 ? clamp(((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2, 0, 1) : 0;
+      const p = [a[0] + u * dx, a[1] + u * dy], d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      if (d < maxD && (!best || d < best.d)) best = { eid: e.id, t: (acc + u * l) / e.len, p, d };
+      acc += l;
+    }
+  }
+  return best;
+}
+// a graph node at a road point: reuse an end node when close, otherwise split the road there
+function nodeAtRoad(r) {
+  const e = edges[r.eid];
+  if (r.t * e.len < 20) return e.a;
+  if ((1 - r.t) * e.len < 20) return e.b;
+  return splitEdge(r.eid, r.t).n;
 }
 
 // ---------- path geometry ----------
@@ -907,10 +989,11 @@ function drawBillboards() {
   const items = [];
   const M = 260;
   for (const d of decor) {
+    d.rect = null;
     const [sx, sy] = w2s(d.x, d.y);
     if (sx < -M || sx > W + M || sy < -M || sy > H + M) continue;
     const wpx = d.w * cam.scale; if (wpx < 4) continue;
-    items.push({ sy, sx, wpx, name: d.sprite });
+    items.push({ sy, sx, wpx, name: d.sprite, dec: d });
   }
   for (const p of POIS) {
     const [sx, sy] = w2s(p.x, p.y);
@@ -921,6 +1004,7 @@ function drawBillboards() {
   for (const it of items) {
     const r = drawSprite(it.name, it.sx, it.sy, it.wpx, it.emoji);
     if (it.poi) it.poi.rect = r;
+    if (it.dec) it.dec.rect = r;
   }
   // labels on top
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -977,9 +1061,9 @@ function drawCar(t) {
 }
 function drawPin(t) {
   if (!trip || (mode !== 'preview' && mode !== 'nav')) return;
-  const p = trip.poi, r = p.rect;
+  const p = trip.poi, r = p.dec ? p.dec.rect : p.rect;
   const [sx, sy] = w2s(p.x, p.y);
-  const top = r ? r[1] : sy - 60;
+  const top = r ? r[1] : sy + 4; // a plain map point: the pin tip sits on the spot
   const bob = Math.sin(t * 4) * 6;
   const w = 44, im = IMG.pin;
   if (im) ctx.drawImage(im, sx - w / 2, top - w * im.height / im.width - 4 + bob, w, w * im.height / im.width);
@@ -1061,11 +1145,15 @@ function startNav() {
   mode = 'nav';
   trip.s = 0; trip.v = 0; trip.idx = 0; trip.mi = 0; trip.said = {};
   navZoom = 1; navFreeUntil = 0;
-  say(trip.poi.phrase + '! Поехали!', true);
+  say(kidName ? `${kidName}, поехали! ${trip.poi.phrase}!` : trip.poi.phrase + '! Поехали!', true);
   requestWake();
   ui();
 }
 function stopNav() {
+  if (mode === 'nav' && trip) {
+    const r = nearestRoad([car.x, car.y]);
+    if (r) car.node = nodeAtRoad(r); // the car stays here; the next trip starts from this spot
+  }
   mode = 'idle'; trip = null;
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   releaseWake();
@@ -1075,8 +1163,15 @@ function stopNav() {
 function arrive() {
   mode = 'arrived';
   car.node = trip.poi.node;
-  say('Вы прибыли! ' + trip.poi.name + '!', true);
-  setPic($('arPic'), trip.poi);
+  say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true);
+  $('arTitle').textContent = kidName ? `Ура, ${kidName}!` : 'Вы прибыли!';
+  const arPic = $('arPic'), arPlace = $('arPlace');
+  arPlace.innerHTML = '';
+  if (kidPhoto) {
+    arPic.className = 'pic photo'; arPic.innerHTML = '';
+    const k = document.createElement('img'); k.className = 'kid'; k.src = kidPhoto; arPic.appendChild(k);
+    setPic(arPlace, trip.poi);
+  } else { arPic.className = 'pic'; setPic(arPic, trip.poi); }
   $('arName').textContent = trip.poi.name;
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
@@ -1174,7 +1269,33 @@ function buildGarage() {
   }
   $('btnCar').innerHTML = `<img src="${(IMG[carSkin] || IMG.car_top || IMG.car).src}" alt="">`;
 }
-$('btnCar').onclick = () => { buildGarage(); $('garage').classList.toggle('hidden'); };
+// driver: name and photo live only on this phone (localStorage), never in the app files
+let kidName = '', kidPhoto = '';
+const DEFAULT_NAME = 'Костя', DEFAULT_PHOTO = 'img/kostya.jpg';
+kidName = DEFAULT_NAME; kidPhoto = DEFAULT_PHOTO;
+try { const n = localStorage.getItem('kidName'), p = localStorage.getItem('kidPhoto'); if (n !== null) kidName = n; if (p) kidPhoto = p; } catch (e) { }
+function showDriver() {
+  $('kidName').value = kidName;
+  const b = $('photoBtn');
+  b.style.backgroundImage = kidPhoto ? `url(${kidPhoto})` : ''; b.textContent = kidPhoto ? '' : '📷';
+}
+$('kidName').oninput = e => { kidName = e.target.value.trim(); try { localStorage.setItem('kidName', kidName); } catch (err) { } };
+$('photoBtn').onclick = () => $('photoFile').click();
+$('photoFile').onchange = e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const im = new Image();
+  im.onload = () => {
+    // square crop from the centre, 360 px, JPEG: small enough for local storage
+    const S = 360, c = document.createElement('canvas'); c.width = c.height = S;
+    const m = Math.min(im.width, im.height);
+    c.getContext('2d').drawImage(im, (im.width - m) / 2, (im.height - m) / 2, m, m, 0, 0, S, S);
+    kidPhoto = c.toDataURL('image/jpeg', 0.85);
+    try { localStorage.setItem('kidPhoto', kidPhoto); } catch (err) { }
+    URL.revokeObjectURL(im.src); showDriver();
+  };
+  im.src = URL.createObjectURL(f);
+};
+$('btnCar').onclick = () => { buildGarage(); showDriver(); $('garage').classList.toggle('hidden'); };
 $('garageClose').onclick = () => $('garage').classList.add('hidden');
 $('pvGo').onclick = startNav;
 $('pvCancel').onclick = stopNav;
@@ -1213,10 +1334,16 @@ cv.addEventListener('pointermove', e => {
   }
 });
 function pinchDist() { const [a, b] = [...ptrs.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; }
+let lastTap = { t: 0, x: 0, y: 0 };
 function endPtr(e) {
   const wasTap = gesture && !gesture.moved && ptrs.size === 1;
   ptrs.delete(e.pointerId);
-  if (wasTap && (mode === 'idle' || mode === 'preview')) tapAt(e.clientX, e.clientY);
+  if (wasTap && (mode === 'idle' || mode === 'preview')) {
+    const now = performance.now();
+    const dbl = now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 40;
+    lastTap = dbl ? { t: 0, x: 0, y: 0 } : { t: now, x: e.clientX, y: e.clientY };
+    if (dbl) customTarget(e.clientX, e.clientY); else tapAt(e.clientX, e.clientY);
+  }
   if (!ptrs.size) gesture = null;
 }
 cv.addEventListener('pointerup', endPtr);
@@ -1227,6 +1354,36 @@ cv.addEventListener('wheel', e => {
   tgt.scale = clamp(tgt.scale * Math.exp(-e.deltaY * 0.0015), baseScale() * 0.15, baseScale() * 4);
   userZoom = tgt.scale / baseScale();
 }, { passive: true });
+const alphaMasks = {};
+function opaqueAt(name, u, v) {
+  const im = IMG[name]; if (!im) return false;
+  let m = alphaMasks[name];
+  if (!m) {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+    m = alphaMasks[name] = { w: im.width, h: im.height, a: g.getImageData(0, 0, im.width, im.height).data };
+  }
+  const px = clamp(Math.floor(u * m.w), 0, m.w - 1), py = clamp(Math.floor(v * m.h), 0, m.h - 1);
+  return m.a[(py * m.w + px) * 4 + 3] > 40;
+}
+const BUILDINGS = new Set(['house_1', 'house_2', 'house_3', 'house_4', 'apartment_1', 'apartment_2', 'office_tower']);
+const CUSTOM_NAMES = { house_1: 'Домик', house_2: 'Домик', house_3: 'Домик', house_4: 'Домик', apartment_1: 'Многоэтажка', apartment_2: 'Многоэтажка', office_tower: 'Офис', tree_1: 'Дерево', tree_2: 'Ёлка', tree_3: 'Дерево', bush: 'Кустик', pond: 'Пруд' };
+function customTarget(x, y) {
+  if (POIS.some(p => p.rect && x > p.rect[0] && x < p.rect[0] + p.rect[2] && y > p.rect[1] && y < p.rect[1] + p.rect[3])) return; // a real place: already handled by single tap
+  // a building or tree under the finger?
+  let hit = null;
+  // the picture really under the finger (non-transparent pixel, topmost wins); only buildings count
+  for (const d of decor) {
+    const r = d.rect; if (!r || x < r[0] || x > r[0] + r[2] || y < r[1] || y > r[1] + r[3]) continue;
+    if (!opaqueAt(d.sprite, (x - r[0]) / r[2], (y - r[1]) / r[3])) continue;
+    if (!hit || d.y > hit.y) hit = d;
+  }
+  if (!hit || !BUILDINGS.has(hit.sprite)) return;
+  const road = nearestRoad([hit.x, hit.y], 600);
+  if (!road) return;
+  const n = nodeAtRoad(road);
+  startPreview({ key: 'custom', name: CUSTOM_NAMES[hit.sprite] || 'Дом', sprite: hit.sprite, emoji: '🏠', node: n, x: hit.x, y: hit.y, w: hit.w, dec: hit, phrase: 'Едем в гости' });
+}
 function tapAt(x, y) {
   let hit = null, bd = 1e9;
   for (const p of POIS) {
@@ -1281,6 +1438,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { POIS, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();

@@ -100,6 +100,14 @@
   .go { flex: 1; height: 66px; border-radius: 20px; background: var(--green); color: #fff; font-size: 28px; font-weight: 800; box-shadow: 0 4px 0 #1E8449; }
   .go:active { transform: translateY(3px); box-shadow: 0 1px 0 #1E8449; }
   .cancel { width: 66px; height: 66px; border-radius: 20px; background: #F3F4F6; font-size: 26px; }
+  .driver { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding-top: 14px; border-top: 2px solid #F3F4F6; }
+  .avatar { width: 76px; height: 76px; border-radius: 50%; background: #F3F4F6 center/cover no-repeat; font-size: 30px; flex: none; border: 4px solid #FFD23F; }
+  #kidName { width: 100%; font: inherit; font-size: 22px; font-weight: 700; padding: 10px 14px; border-radius: 14px; border: 2px solid #E5E7EB; user-select: text; -webkit-user-select: text; }
+  #arrived #arPic.photo { width: 190px; height: 190px; border-radius: 50%; overflow: hidden; border: 6px solid #FFD23F; box-shadow: 0 0 0 6px #fff, 0 8px 24px rgba(0,0,0,.25); position: relative; }
+  #arPic.photo > img.kid { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
+  #arPlace { position: absolute; right: -6px; bottom: -6px; width: 70px; height: 70px; }
+  #arPlace img { max-width: 70px; max-height: 70px; }
+  #arWrap { position: relative; width: 190px; margin: 0 auto; }
   #arrived { top: 50%; bottom: auto; transform: translateY(-50%); text-align: center; padding: 22px; }
   #arrived .pic { margin: 0 auto; width: 150px; height: 130px; font-size: 90px; }
   #arrived .pic img { max-width: 150px; max-height: 130px; }
@@ -130,6 +138,14 @@
 <div id="garage" class="card hidden">
   <div class="row" style="justify-content:space-between"><h2>Выбери машинку</h2><button class="cancel" id="garageClose" style="width:52px;height:52px">✕</button></div>
   <div id="garageList"></div>
+  <div class="driver">
+    <button id="photoBtn" class="avatar" aria-label="Фото водителя">📷</button>
+    <div style="flex:1">
+      <div class="sub" style="margin:0 0 6px">Водитель</div>
+      <input id="kidName" type="text" placeholder="Имя" maxlength="20" autocomplete="off">
+    </div>
+    <input id="photoFile" type="file" accept="image/*" hidden>
+  </div>
 </div>
 
 <div id="tripbar" class="hidden"><div id="tTime"></div><div id="tInfo"></div></div>
@@ -148,8 +164,8 @@
 </div>
 
 <div id="arrived" class="card hidden">
-  <div class="pic" id="arPic"></div>
-  <h2>Вы прибыли!</h2>
+  <div id="arWrap"><div class="pic" id="arPic"></div><div id="arPlace"></div></div>
+  <h2 id="arTitle">Вы прибыли!</h2>
   <div class="sub" id="arName"></div>
   <div class="btns"><button class="go" id="arOk">Куда дальше?</button></div>
 </div>

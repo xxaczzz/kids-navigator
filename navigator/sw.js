@@ -1,10 +1,10 @@
 // Bump VERSION after any change so phones pick up the new files.
-const VERSION = 'nav-v8';
-const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'nav-v19';
+const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'img/kostya.jpg'];
 const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'home', 'kindergarten', 'shop', 'gas_station', 'fire_station', 'playground',
   'police', 'hospital', 'school', 'train_station', 'cinema', 'ice_cream', 'pizza', 'post_office', 'car_wash', 'stadium',
-  'airport', 'amusement_park', 'grandma', 'zoo', 'lighthouse'].map(n => 'img/' + n + '.png');
+  'airport', 'amusement_park', 'grandma', 'zoo', 'lighthouse', 'orbi_city', 'beach', 'port', 'aquapark', 'bakery', 'library', 'circus', 'toy_shop', 'dino_museum', 'vet', 'farm', 'camp', 'picnic', 'castle', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', 'mcdonalds', 'marriott', 'europe_square', 'car_police', 'car_cat', 'car_blue'].map(n => 'img/' + n + '.png');
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(async c => {
