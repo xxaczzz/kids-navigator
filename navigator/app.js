@@ -273,6 +273,7 @@ const POI_DEFS = [
   ['school', 'Школа', 'school', '🏫', 'Av0,2', .5, -1, 175, 'Едем в школу'],
   ['shop', 'Магазин', 'shop', '🛒', 'Ah3,3', .5, -1, 140, 'Едем в магазин'],
   ['gas', 'Заправка', 'gas_station', '⛽', 'Ah5,2', .5, 1, 170, 'Едем на заправку'],
+  ['gas2', 'Заправка', 'gas_station', '⛽', 'Bh6,3', .5, 1, 170, 'Едем на заправку'],
   ['fire', 'Пожарные', 'fire_station', '🚒', 'Av6,0', .5, -1, 160, 'Едем к пожарным'],
   ['park', 'Парк', 'playground', '🛝', 'Ah5,0', .45, 1, 170, 'Едем в парк'],
   ['police', 'Полиция', 'police', '🚓', 'Av4,3', .5, 1, 160, 'Едем в полицию'],
@@ -295,7 +296,7 @@ const POI_DEFS = [
   ['aquapark', 'Аквапарк', 'aquapark', '💦', 'blv@10300', .5, -1, 240, 'Едем в аквапарк'],
   ['bakery', 'Пекарня', 'bakery', '🥖', 'Ah2,1', .5, 1, 130, 'Едем в пекарню'],
   ['library', 'Библиотека', 'library', '📚', 'Av3,3', .5, 1, 160, 'Едем в библиотеку'],
-  ['circus', 'Цирк', 'circus', '🎪', 'Ah7,3', .5, 1, 170, 'Едем в цирк'],
+  ['circus', 'Цирк', 'circus', '🎪', 'Ah7,1', .5, 1, 170, 'Едем в цирк'],
   ['toys', 'Игрушки', 'toy_shop', '🧸', 'Bh2,2', .5, 1, 130, 'Едем за игрушками'],
   ['dino', 'Динозавры', 'dino_museum', '🦖', 'Bv5,3', .5, 1, 190, 'Едем к динозаврам'],
   ['vet', 'Ветклиника', 'vet', '🐾', 'subB', .5, 1, 130, 'Едем в ветклинику'],
@@ -376,7 +377,8 @@ function spriteClear(q, w, sprite) {
 function placeBeside(p, n, half, w, sprite, maxOff = 320) {
   for (let off = half + 12; off < half + maxOff; off += 10) {
     const q = [p[0] + n[0] * off, p[1] + n[1] * off];
-    if (spriteClear(q, w, sprite) && ![-0.4, 0, 0.4].some(f => inWater([q[0] + f * w, q[1]]))) return q;
+    if (spriteClear(q, w, sprite) && ![-0.4, 0, 0.4].some(f => inWater([q[0] + f * w, q[1]]))
+      && !POIS.some(o => Math.abs(o.x - q[0]) < (o.w + w) * 0.5 && Math.abs(o.y - q[1]) < (o.w + w) * 0.42)) return q;
   }
   return null;
 }
@@ -1155,6 +1157,7 @@ function stopNav() {
     if (r) car.node = nodeAtRoad(r); // the car stays here; the next trip starts from this spot
   }
   mode = 'idle'; trip = null;
+  engineStop(); saveFuel();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   releaseWake();
   tgt.x = car.x; tgt.y = car.y; tgt.rot = 0; tgt.scale = baseScale() * userZoom; tgt.fy = 0.5;
@@ -1174,9 +1177,88 @@ function arrive() {
   } else { arPic.className = 'pic'; setPic(arPic, trip.poi); }
   $('arName').textContent = trip.poi.name;
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
+  engineStop(); saveFuel();
+  if (isGas(trip.poi) && fuel < 0.99) { say('Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
   releaseWake();
   ui();
+}
+// ---------- sounds ----------
+let actx = null, engineOn = true;
+const SND = {};
+try { engineOn = localStorage.getItem('engineOn') !== '0'; } catch (e) { }
+function audio() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+async function sound(name, file) {
+  if (SND[name]) return SND[name];
+  const a = audio(); if (!a) return null;
+  try { const buf = await (await fetch(file)).arrayBuffer(); SND[name] = await a.decodeAudioData(buf); } catch (e) { SND[name] = null; }
+  return SND[name];
+}
+addEventListener('pointerdown', () => { audio(); sound('ign', 'snd/ignition.mp3'); sound('eng', 'snd/engine.ogg'); }, { once: true });
+let eng = null; // {src, gain}
+async function engineStart() {
+  if (muted || !engineOn || eng || mode !== 'nav') return;
+  const b = await sound('eng', 'snd/engine.ogg'); const a = audio(); if (!b || !a || eng || mode !== 'nav') return;
+  const src = a.createBufferSource(), gain = a.createGain();
+  src.buffer = b; src.loop = true; src.connect(gain).connect(a.destination);
+  gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.12, a.currentTime + 0.6);
+  src.start(); eng = { src, gain };
+}
+function engineSpeed(v) {
+  if (!eng) return;
+  const k = Math.min(1, v / 110), a = actx;
+  eng.src.playbackRate.setTargetAtTime(0.85 + 0.75 * k, a.currentTime, 0.3);
+  eng.gain.gain.setTargetAtTime(0.10 + 0.10 * k, a.currentTime, 0.3);
+}
+function engineStop() {
+  if (!eng) return;
+  const e = eng, a = actx; eng = null;
+  e.gain.gain.setTargetAtTime(0, a.currentTime, 0.15);
+  setTimeout(() => { try { e.src.stop(); } catch (err) { } }, 900);
+}
+async function ignition() {
+  const btn = $('pvGo');
+  if (btn.disabled) return;
+  if (muted) { startNav(); return; }
+  btn.disabled = true; btn.classList.add('turning');
+  const b = await sound('ign', 'snd/ignition.mp3'), a = audio();
+  if (b && a) { const s = a.createBufferSource(), g = a.createGain(); g.gain.value = 0.9; s.buffer = b; s.connect(g).connect(a.destination); s.start(); }
+  setTimeout(() => { btn.disabled = false; btn.classList.remove('turning'); startNav(); engineStart(); }, 1600);
+}
+
+// ---------- fuel ----------
+const FUEL_METERS = 40000, FUEL_MIN = 0.05; // a full tank is about 8-10 trips; never runs dry
+let fuel = 1, fuelSaved = 0, refuelAnim = null;
+try { const f = parseFloat(localStorage.getItem('fuel')); if (f >= 0) fuel = Math.max(FUEL_MIN, Math.min(1, f)); } catch (e) { }
+const saveFuel = () => { try { localStorage.setItem('fuel', fuel.toFixed(3)); } catch (e) { } };
+const isGas = p => p && (p.key === 'gas' || p.key === 'gas2');
+function burnFuel(meters) {
+  const before = fuel;
+  fuel = Math.max(FUEL_MIN, fuel - meters / FUEL_METERS);
+  const who = kidName ? kidName + ', ' : '';
+  if (before > 0.5 && fuel <= 0.5) say(cap(who + 'бензина осталось полбака'));
+  if (before > 0.15 && fuel <= 0.15) say(cap(who + 'бензин заканчивается! Поехали на заправку!'));
+  if (performance.now() - fuelSaved > 3000) { fuelSaved = performance.now(); saveFuel(); }
+}
+function drawFuel(dt) {
+  if (refuelAnim) {
+    fuel = Math.min(1, fuel + dt / 4);
+    if (fuel >= 1) { refuelAnim = null; saveFuel(); say('Бак полный! Можно ехать!'); }
+  }
+  const el = $('fuel'), low = fuel < 0.25;
+  $('fuelBar').style.width = Math.round(fuel * 100) + '%';
+  $('fuelBar').style.background = fuel < 0.25 ? '#F2545B' : fuel < 0.5 ? '#FFB020' : '#27AE60';
+  el.classList.toggle('low', low && mode === 'idle');
+  el.classList.toggle('hidden', mode === 'preview');
+}
+function nearestGas() {
+  let best = null;
+  for (const p of POIS) if (isGas(p)) { const d = Math.hypot(p.x - car.x, p.y - car.y); if (!best || d < best.d) best = { p, d }; }
+  return best && best.p;
 }
 function updateTrip(dt) {
   if (mode !== 'nav' || !trip) return;
@@ -1186,6 +1268,8 @@ function updateTrip(dt) {
   if (trip.v < vt) trip.v = Math.min(vt, trip.v + 22 * dt); else trip.v = Math.max(vt, trip.v - 40 * dt);
   trip.v = Math.max(trip.v, 4);
   trip.s += trip.v * dt;
+  burnFuel(trip.v * dt);
+  engineSpeed(trip.v);
   if (trip.s >= trip.L - 0.5) { const q = P[P.length - 1]; car.x = q.x; car.y = q.y; car.h = q.h; arrive(); return; }
   while (trip.idx < P.length - 2 && P[trip.idx + 1].s <= trip.s) trip.idx++;
   const a = P[trip.idx], b = P[trip.idx + 1], t = (trip.s - a.s) / ((b.s - a.s) || 1);
@@ -1201,10 +1285,10 @@ function updateTrip(dt) {
   const d = (m ? m.s : trip.L) - trip.s;
   const v = trip.v, far = Math.max(260, v * 7), near = Math.max(70, v * 2.4);
   const key = trip.mi;
-  if (m) {
+  if (m && m.kind === 'ring') {
     if (!trip.said['f' + key] && d < far && d > near * 1.5) { trip.said['f' + key] = 1; say(`${cap(sayDist(d))} ${m.say}`); }
     if (!trip.said['n' + key] && d < near) { trip.said['n' + key] = 1; trip.said['f' + key] = 1; say(cap(m.say), true); }
-  } else if (!trip.said.fin && d < far && d > 60) { trip.said.fin = 1; say(`${cap(sayDist(d))} вы на месте`); }
+  } else if (!m && !trip.said.fin && d < far && d > 60) { trip.said.fin = 1; say(`${cap(sayDist(d))} вы на месте`); }
 
   // banner and trip bar
   const kind = m ? m.kind : 'finish';
@@ -1295,13 +1379,19 @@ $('photoFile').onchange = e => {
   };
   im.src = URL.createObjectURL(f);
 };
-$('btnCar').onclick = () => { buildGarage(); showDriver(); $('garage').classList.toggle('hidden'); };
+$('btnCar').onclick = () => { buildGarage(); showDriver(); showEngineToggle(); $('garage').classList.toggle('hidden'); };
 $('garageClose').onclick = () => $('garage').classList.add('hidden');
-$('pvGo').onclick = startNav;
+$('pvGo').onclick = ignition;
+$('fuel').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
+$('engineToggle').onclick = () => {
+  engineOn = !engineOn; try { localStorage.setItem('engineOn', engineOn ? '1' : '0'); } catch (e) { }
+  showEngineToggle(); if (!engineOn) engineStop();
+};
+function showEngineToggle() { $('engineToggle').textContent = engineOn ? '🔊 Звук мотора: вкл' : '🔇 Звук мотора: выкл'; }
 $('pvCancel').onclick = stopNav;
 $('btnStop').onclick = stopNav;
 $('arOk').onclick = () => { trip = null; stopNav(); };
-$('btnMute').onclick = () => { muted = !muted; $('btnMute').textContent = muted ? '🔇' : '🔊'; if (muted) speechSynthesis?.cancel(); };
+$('btnMute').onclick = () => { muted = !muted; $('btnMute').textContent = muted ? '🔇' : '🔊'; if (muted) { speechSynthesis?.cancel(); engineStop(); } else engineStart(); };
 $('btnCenter').onclick = () => {
   if (mode === 'nav') { navFreeUntil = 0; navZoom = 1; return; }
   tgt.x = car.x; tgt.y = car.y; userZoom = 1; tgt.scale = baseScale();
@@ -1403,6 +1493,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const t = now / 1000;
   updateTrip(dt);
+  drawFuel(dt);
   updateCamera(dt);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = GRASS; ctx.fillRect(0, 0, W, H);
