@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#5BB8F5">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Навигатор</title>
+<style>
+  :root {
+    --ink: #2B2B3A;
+    --blue: #2F80ED;
+    --green: #27AE60;
+    --panel: #FFFFFF;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #9ED47F; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); }
+  canvas { position: fixed; inset: 0; touch-action: none; display: block; }
+  .hidden { display: none !important; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+
+  /* maneuver banner */
+  #banner {
+    position: fixed; top: calc(env(safe-area-inset-top) + 10px); left: 10px; right: 10px;
+    background: #1F6FD1; color: #fff; border-radius: 22px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  }
+  #bArrow { width: 72px; height: 72px; flex: none; }
+  #bArrow svg { width: 100%; height: 100%; }
+  #bDist { font-size: 40px; font-weight: 800; line-height: 1; }
+  #bText { font-size: 22px; font-weight: 600; margin-top: 4px; opacity: .95; }
+
+  /* round buttons */
+  .round {
+    position: fixed; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--panel); box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    font-size: 26px; display: grid; place-items: center;
+  }
+  #btnMute { right: 12px; top: calc(env(safe-area-inset-top) + 12px); }
+  #btnCenter { right: 12px; top: calc(env(safe-area-inset-top) + 78px); }
+  #btnCar { left: 12px; top: calc(env(safe-area-inset-top) + 12px); width: 64px; height: 64px; }
+  #btnCar img { height: 46px; }
+  #garage { top: calc(env(safe-area-inset-top) + 86px); bottom: auto; }
+  #garageList { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  #garageList .dest { width: auto; }
+  #garageList .pic { height: 92px; }
+  #garageList img { max-height: 88px; max-width: 64px; }
+  .dest.sel { background: #DBEAFE; outline: 3px solid #2F80ED; }
+  body.nav #btnMute { top: auto; bottom: calc(env(safe-area-inset-bottom) + 112px); }
+  body.nav #btnCenter { top: auto; bottom: calc(env(safe-area-inset-bottom) + 180px); }
+  #btnStop { left: 12px; bottom: calc(env(safe-area-inset-bottom) + 112px); font-size: 24px; }
+
+  #speed {
+    position: fixed; left: 12px; bottom: calc(env(safe-area-inset-bottom) + 180px);
+    width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 4px solid #E5E7EB;
+    display: grid; place-items: center; text-align: center; line-height: 1; box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  }
+  #speed b { font-size: 24px; display: block; }
+  #speed span { font-size: 11px; color: var(--muted); }
+
+  /* trip bar */
+  #tripbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 14px 20px calc(env(safe-area-inset-bottom) + 14px);
+    background: var(--panel); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,.15);
+    display: flex; align-items: baseline; justify-content: center; gap: 18px;
+  }
+  #tTime { font-size: 32px; font-weight: 800; color: var(--green); }
+  #tInfo { font-size: 20px; color: var(--muted); font-weight: 600; }
+
+  /* destinations bar */
+  #dests {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 10px 10px calc(env(safe-area-inset-bottom) + 10px);
+    background: rgba(255,255,255,.96); border-radius: 22px 22px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,.15);
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  }
+  #dests::-webkit-scrollbar { display: none; }
+  .dest { flex: none; width: 84px; padding: 6px 2px; border-radius: 16px; background: #F3F4F6; text-align: center; }
+  .dest:active { background: #DBEAFE; }
+  .dest .pic { height: 58px; display: grid; place-items: center; font-size: 40px; }
+  .dest img { max-width: 72px; max-height: 58px; }
+  .dest .lbl { font-size: 13px; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dest.here { opacity: .35; }
+
+  /* preview + arrived cards */
+  .card {
+    position: fixed; left: 10px; right: 10px; bottom: calc(env(safe-area-inset-bottom) + 10px);
+    background: var(--panel); border-radius: 26px; padding: 16px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
+  }
+  .card .row { display: flex; align-items: center; gap: 14px; }
+  .card .pic { width: 84px; height: 84px; flex: none; display: grid; place-items: center; font-size: 56px; }
+  .card .pic img { max-width: 84px; max-height: 84px; }
+  .card h2 { margin: 0; font-size: 26px; }
+  .card .sub { color: var(--muted); font-size: 18px; font-weight: 600; margin-top: 4px; }
+  .card .btns { display: flex; gap: 10px; margin-top: 14px; }
+  .go { flex: 1; height: 66px; border-radius: 20px; background: var(--green); color: #fff; font-size: 28px; font-weight: 800; box-shadow: 0 4px 0 #1E8449; }
+  .go:active { transform: translateY(3px); box-shadow: 0 1px 0 #1E8449; }
+  .cancel { width: 66px; height: 66px; border-radius: 20px; background: #F3F4F6; font-size: 26px; }
+  #arrived { top: 50%; bottom: auto; transform: translateY(-50%); text-align: center; padding: 22px; }
+  #arrived .pic { margin: 0 auto; width: 150px; height: 130px; font-size: 90px; }
+  #arrived .pic img { max-width: 150px; max-height: 130px; }
+  #arrived h2 { font-size: 36px; margin-top: 8px; }
+  #arrived .go { background: var(--blue); box-shadow: 0 4px 0 #1B5FB8; }
+
+  @media (orientation: landscape) {
+    #banner { right: auto; width: min(460px, 60vw); }
+    .card { left: auto; width: min(460px, 60vw); }
+    #arrived { left: 50%; transform: translate(-50%, -50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+
+<div id="banner" class="hidden">
+  <div id="bArrow"></div>
+  <div><div id="bDist"></div><div id="bText"></div></div>
+</div>
+
+<div id="speed" class="hidden"><div><b id="spd">0</b><span>км/ч</span></div></div>
+<button id="btnStop" class="round hidden" aria-label="Стоп">✕</button>
+<button id="btnMute" class="round" aria-label="Звук">🔊</button>
+<button id="btnCenter" class="round" aria-label="К машинке">🎯</button>
+<button id="btnCar" class="round" aria-label="Выбрать машинку"></button>
+
+<div id="garage" class="card hidden">
+  <div class="row" style="justify-content:space-between"><h2>Выбери машинку</h2><button class="cancel" id="garageClose" style="width:52px;height:52px">✕</button></div>
+  <div id="garageList"></div>
+</div>
+
+<div id="tripbar" class="hidden"><div id="tTime"></div><div id="tInfo"></div></div>
+
+<div id="dests"></div>
+
+<div id="preview" class="card hidden">
+  <div class="row">
+    <div class="pic" id="pvPic"></div>
+    <div><h2 id="pvName"></h2><div class="sub" id="pvInfo"></div></div>
+  </div>
+  <div class="btns">
+    <button class="cancel" id="pvCancel">✕</button>
+    <button class="go" id="pvGo">Поехали!</button>
+  </div>
+</div>
+
+<div id="arrived" class="card hidden">
+  <div class="pic" id="arPic"></div>
+  <h2>Вы прибыли!</h2>
+  <div class="sub" id="arName"></div>
+  <div class="btns"><button class="go" id="arOk">Куда дальше?</button></div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

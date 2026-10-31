@@ -1,0 +1,32 @@
+// Bump VERSION after any change so phones pick up the new files.
+const VERSION = 'nav-v8';
+const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const SPRITES = ['car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+  'apartment_1', 'apartment_2', 'office_tower', 'home', 'kindergarten', 'shop', 'gas_station', 'fire_station', 'playground',
+  'police', 'hospital', 'school', 'train_station', 'cinema', 'ice_cream', 'pizza', 'post_office', 'car_wash', 'stadium',
+  'airport', 'amusement_park', 'grandma', 'zoo', 'lighthouse'].map(n => 'img/' + n + '.png');
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(VERSION).then(async c => {
+    await c.addAll(CORE);
+    // sprites are optional: missing ones fall back to emoji
+    await Promise.allSettled(SPRITES.map(u => c.add(u)));
+  }).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request).then(res => {
+    if (res.ok && new URL(e.request.url).origin === location.origin) {
+      const copy = res.clone();
+      caches.open(VERSION).then(c => c.put(e.request, copy));
+    }
+    return res;
+  })));
+});
