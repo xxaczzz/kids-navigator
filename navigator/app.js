@@ -1017,12 +1017,40 @@ function locate(path, p, from) {
 let muted = false, ruVoice = null;
 function pickVoice() { const vs = speechSynthesis.getVoices(); ruVoice = vs.find(v => /^ru/i.test(v.lang)) || null; }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+// iOS Safari only lets a page speak after something was spoken right inside a tap.
+// unlockSpeech() speaks a silent phrase from the tap; after that every later phrase is allowed.
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let speechUnlocked = false, speakingNow = 0;
+const liveUtterances = new Set(); // iOS drops phrases that nothing holds on to
+function unlockSpeech() {
+  if (!IOS || speechUnlocked || !('speechSynthesis' in window)) return; // iPhone/iPad only
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0; u.lang = 'ru-RU';
+  speechSynthesis.speak(u);
+  speechUnlocked = true;
+}
+addEventListener('pointerdown', unlockSpeech);
+addEventListener('touchend', unlockSpeech);
 function say(text, urgent) {
   if (muted || !('speechSynthesis' in window)) return;
+  if (!IOS) { // Android and desktop: unchanged
+    if (urgent) speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice; u.rate = 1; u.pitch = 1.05;
+    speechSynthesis.speak(u);
+    return;
+  }
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice; u.rate = 1; u.pitch = 1.05;
+    liveUtterances.add(u);
+    u.onstart = () => { speakingNow++; };
+    u.onend = u.onerror = () => { liveUtterances.delete(u); speakingNow = Math.max(0, speakingNow - 1); };
+    if (speechSynthesis.paused) speechSynthesis.resume();
+    speechSynthesis.speak(u);
+  };
   if (urgent) speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice; u.rate = 1; u.pitch = 1.05;
-  speechSynthesis.speak(u);
+  if (urgent && IOS) setTimeout(go, 60); else go(); // iOS drops a phrase spoken right after cancel()
 }
 function sayDist(d) {
   if (d < 1000) { const n = Math.max(50, Math.round(d / 50) * 50); return n >= 1000 ? 'через 1 километр' : `через ${n} метров`; }
@@ -1517,7 +1545,8 @@ function engineSpeed(v) {
   if (!eng) return;
   const k = Math.min(1, v / 110), a = actx;
   eng.src.playbackRate.setTargetAtTime(0.85 + 0.75 * k, a.currentTime, 0.3);
-  eng.gain.gain.setTargetAtTime(0.5 + 0.35 * k, a.currentTime, 0.3);
+  const duck = IOS && speakingNow > 0 ? 0.35 : 1;
+  eng.gain.gain.setTargetAtTime((0.5 + 0.35 * k) * duck, a.currentTime, 0.3);
 }
 function engineStop() {
   if (!eng) return;
@@ -1528,6 +1557,7 @@ function engineStop() {
 async function ignition() {
   const btn = $('pvGo');
   if (btn.disabled) return;
+  unlockSpeech(); // must run inside the tap, before any await
   if (muted) { startNav(); return; }
   btn.disabled = true; btn.classList.add('turning');
   const b = await sound('ign', 'snd/ignition.mp3'), a = audio();
