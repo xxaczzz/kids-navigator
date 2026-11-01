@@ -331,7 +331,7 @@ const POI_DEFS = [
   ['bakery', 'Пекарня', 'bakery', '🥖', 'Ah2,1', .5, 1, 130, 'Едем в пекарню'],
   ['library', 'Библиотека', 'library', '📚', 'Av3,3', .5, 1, 160, 'Едем в библиотеку'],
   ['circus', 'Цирк', 'circus', '🎪', 'Ah7,1', .5, 1, 170, 'Едем в цирк'],
-  ['toys', 'Игрушки', 'toy_shop', '🧸', 'Bh2,2', .5, 1, 130, 'Едем за игрушками'],
+  ['toys', 'Игрушки', 'toy_shop', '🧸', 'Bh3,1', .5, 1, 130, 'Едем за игрушками'],
   ['dino', 'Динозавры', 'dino_museum', '🦖', 'Bv5,3', .5, 1, 190, 'Едем к динозаврам'],
   ['vet', 'Ветклиника', 'vet', '🐾', 'subB', .5, 1, 130, 'Едем в ветклинику'],
   ['farm', 'Ферма', 'farm', '🐄', 'farmRd', .9, 1, 320, 'Едем на ферму'],
@@ -339,13 +339,15 @@ const POI_DEFS = [
   ['picnic', 'Пикник', 'picnic', '🧺', 'picnicRd', .9, -1, 160, 'Едем на пикник'],
   ['marriott', 'Марриотт', 'marriott', '🏨', 'blv@3800', .5, -1, 300, 'Едем в Марриотт'],
   ['europe', 'Площадь Европы', 'europe_square', '⛲', 'Ah4,2', .5, 1, 290, 'Едем на площадь Европы'],
+  ['grandmall', 'Гранд Молл', 'grand_mall', '🛍️', 'blv@8650', .5, -1, 260, 'Едем в Гранд Молл'],
+  ['metrocity', 'Метро Сити', 'metro_city', '🏬', 'blv@9350', .5, -1, 320, 'Едем в Метро Сити'],
   ['mcdonalds', 'Макдональдс', 'mcdonalds', '🍔', 'Av4,1', .5, 1, 150, 'Едем в Макдональдс'],
   ['resort', 'Курорт', 'lake_resort', '🏝️', 'lakeRd', .92, -1, 230, 'Едем на курорт'],
   ['castle', 'Замок', 'castle', '🏰', 'forest', .92, -1, 230, 'Едем в замок'],
 ];
 const POIS = [];
 // hand-placed spots for big pictures that need the whole block: [x, y (base), width]
-const POS_FIX = { europe: [4400, 3895, 270], train: [10905, 2445, 205], resort: [195, 3250, 240] };
+const POS_FIX = { europe: [4400, 3895, 270], train: [10905, 2445, 205], resort: [195, 3250, 240], grandmall: [8750, 4540, 270], metrocity: [9330, 4555, 340] };
 function placePois() {
   for (const [key, name, sprite, emoji, eref0, t, side, w, phrase] of POI_DEFS) {
     const eref = eref0.startsWith('blv@') ? blvEdgeAt(+eref0.slice(4)) : eref0;
