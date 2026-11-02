@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v29'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v30'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -1016,6 +1016,7 @@ function locate(path, p, from) {
 
 // ---------- speech ----------
 let muted = false, ruVoice = null;
+try { muted = localStorage.getItem('muted') === '1'; } catch (e) { }
 function pickVoice() { const vs = speechSynthesis.getVoices(); ruVoice = vs.find(v => /^ru/i.test(v.lang)) || null; }
 if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -1072,7 +1073,7 @@ const car = { node: 0, x: 0, y: 0, h: -Math.PI / 2 };
 let trip = null;   // {poi, route, path, man, s, v, mi, ...}
 let wakeLock = null;
 const confetti = [];
-let plane = null, planeTimer = 6;
+let plane = null, planeTimer = 20;
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -1348,8 +1349,14 @@ function drawStreetLights() {
 }
 let LAMPS = [];
 function buildLamps() { LAMPS = nodes.filter(n => n.edges.filter(i => !edges[i].dead).length >= 3).map(n => ({ x: n.x, y: n.y })); }
+let wasDark = null;
+function autoLights() {
+  const dark = night > 0.5;
+  if (dark !== wasDark) { wasDark = dark; lightsOn = dark; const b = $('btnLights'); if (b) b.classList.toggle('on', lightsOn); }
+}
 function drawHeadlights() {
-  const lv = Math.max(night, lightsOn ? 0.75 : 0);
+  autoLights();
+  const lv = lightsOn ? Math.max(0.75, night) : 0;
   if (lv < 0.05) return;
   const [sx, sy] = w2s(car.x, car.y), h = car.h + cam.rot, L = Math.max(60, 170 * cam.scale);
   ctx.save(); ctx.translate(sx, sy); ctx.rotate(h); ctx.globalCompositeOperation = 'lighter';
@@ -1473,7 +1480,13 @@ function drawFuelGauge(f) {
   g.fillStyle = '#C7CCD6'; g.font = '800 15px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText('E', cx + Math.cos(a0) * (R + 2) - 6, cy + Math.sin(a0) * (R + 2) + 12); g.fillText('F', cx + Math.cos(a1) * (R + 2) + 6, cy + Math.sin(a1) * (R + 2) + 12);
   g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * (R - 8), cy + Math.sin(a) * (R - 8)); g.stroke();
-  g.font = '24px system-ui'; g.fillText('⛽', cx, cy + 22);
+  if (f < 0.25) {
+    const on = Math.floor(performance.now() / 700) % 2 === 0;
+    g.save(); g.translate(cx - 12, cy + 8); g.scale(1, 1);
+    g.fillStyle = on ? '#FFC21A' : '#6B5A1E'; if (on) { g.shadowColor = '#FFC21A'; g.shadowBlur = 12; }
+    g.fill(new Path2D('M5 3h8a1 1 0 0 1 1 1v8h1.5a2 2 0 0 1 2 2v3a1 1 0 0 0 2 0V9l-2.3-2.3 1.4-1.4L21.4 8A2 2 0 0 1 22 9.4V17a3 3 0 0 1-6 0v-3h-2v7H4V4a1 1 0 0 1 1-1zm1 2v5h6V5z'));
+    g.restore();
+  } else { g.font = '24px system-ui'; g.fillText('⛽', cx, cy + 22); }
 }
 function drawSprite(name, sx, sy, wpx, emoji) {
   const im = IMG[name];
@@ -1578,37 +1591,82 @@ function drawPin(t) {
   const w = 44, im = IMG.pin;
   if (im) ctx.drawImage(im, sx - w / 2, top - w * im.height / im.width - 4 + bob, w, w * im.height / im.width);
 }
-// the plane takes off from the airport runway, flies away, then later comes back and lands
+// the plane takes off from the airport, circles over the city and flies away;
+// other times it comes in over the city and lands. A soft hum plays while it is on screen.
 function runway() { const ap = ZONES.airport, y = ap[1] + 50 + 55; return { x0: ap[0] + 120, x1: ap[2] - 120, y }; }
+let FLIGHTS = null;
+function buildFlights() {
+  const rw = runway(), mk = pts => { const P = catmull(pts, 40), C = [0]; for (let i = 1; i < P.length; i++) C.push(C[i - 1] + dist(P[i - 1], P[i])); return { P, C, L: C[C.length - 1] }; };
+  const ground = mk([[rw.x0, rw.y], [rw.x1, rw.y]]);
+  // one round trip: take off to the east, fly a big circle around the whole city, come back and land from the west
+  const cx = 6000, cy = 2900, rx = 5300, ry = 2300, loop = [[rw.x1, rw.y], [rw.x1 + 900, rw.y + 120]];
+  for (let k = 0; k <= 40; k++) { const a = -0.95 + k / 40 * (TAU - 0.7); loop.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
+  loop.push([rw.x0 - 1500, rw.y + 60], [rw.x0, rw.y]);
+  const air = mk(loop);
+  FLIGHTS = { rw, ground, air };
+}
+function pathAt(path, s) {
+  const { P, C } = path; s = clamp(s, 0, path.L);
+  let lo = 0, hi = C.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (C[m] < s) lo = m; else hi = m; }
+  const a = P[lo], b = P[hi], t = (s - C[lo]) / ((C[hi] - C[lo]) || 1);
+  return { x: lerp(a[0], b[0], t), y: lerp(a[1], b[1], t), h: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+}
+const AIR_V = 330;
 function drawPlane(dt) {
   if (!IMG.airplane) return;
-  const rw = runway();
+  if (!FLIGHTS) buildFlights();
+  const F = FLIGHTS, run = F.ground.L;
   if (!plane) {
     planeTimer -= dt; if (planeTimer > 0) return;
-    plane = { phase: Math.random() < 0.5 ? 'takeoff' : 'landing', t: 0 };
+    plane = { phase: 'roll', t: 0, s: 0, v: 0 };
   }
   plane.t += dt;
-  let x, y, h = 0, alt = 0; // alt 0 = on the ground, 1 = high
-  if (plane.phase === 'takeoff') {
-    const run = rw.x1 - rw.x0, t = plane.t;
-    const s = 8 * t * t; // accelerate along the runway
-    if (s < run * 0.8) { x = rw.x0 + s; y = rw.y; }
-    else { const k = (s - run * 0.8) / 900; x = rw.x0 + s; y = rw.y - k * 380; alt = Math.min(1, k); h = -Math.min(0.35, k * 0.35); }
-    if (s > run * 0.8 + 6000) { plane = null; planeTimer = 30 + Math.random() * 25; return; }
-  } else {
-    const t = plane.t, L = 5000, v = 230, d = L - t * v; // descends from the west, lands, slows down
-    if (d > 0) { x = rw.x0 - d * 0.95; y = rw.y - d * 0.12; alt = Math.min(1, d / 1500); h = Math.atan2(0.12, 0.95) * Math.min(1, d / 600); }
-    else { const tt = -d / v, s = v * tt - 9 * tt * tt; if (v - 18 * tt <= 0) { plane = null; planeTimer = 30 + Math.random() * 25; return; } x = rw.x0 + s; y = rw.y; }
+  let q, alt = 0;
+  if (plane.phase === 'roll') { // accelerate along the runway, lift off at the end
+    plane.v = Math.min(AIR_V, plane.v + 26 * dt); plane.s += plane.v * dt;
+    q = pathAt(F.ground, plane.s); alt = clamp((plane.s - run * 0.8) / (run * 0.2), 0, 1) * 0.25;
+    if (plane.s >= run) { plane.phase = 'air'; plane.s = 0; }
+  } else if (plane.phase === 'air') { // climb, circle the city, descend on the way back
+    plane.v = AIR_V; plane.s += plane.v * dt; q = pathAt(F.air, plane.s);
+    alt = Math.min(1, 0.25 + plane.s / 1500, (F.air.L - plane.s) / 2200);
+    if (plane.s >= F.air.L) { plane.phase = 'land'; plane.s = 0; }
+  } else { // touch down and brake on the runway
+    plane.v = Math.max(0, plane.v - 45 * dt); plane.s += plane.v * dt; q = pathAt(F.ground, plane.s);
+    if (plane.v <= 0) { endPlane(); return; }
   }
-  const im = IMG.airplane, w = (110 + 50 * alt) * cam.scale, hgt = w * im.height / im.width;
+  plane.q = q;
+  const im = IMG.airplane, w = (110 + 60 * alt) * cam.scale, hgt = w * im.height / im.width;
+  let onScreen = false, sxc = 0, syc = 0;
   for (const shadow of [true, false]) {
-    const [sx, sy] = w2s(x + (shadow ? 70 * alt : 0), y + (shadow ? 110 * alt + 6 : 0));
+    const [sx, sy] = w2s(q.x + (shadow ? 90 * alt : 0), q.y + (shadow ? 140 * alt + 6 : 0));
     if (sx < -300 || sx > W + 300 || sy < -300 || sy > H + 300) continue;
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + cam.rot + Math.PI / 2);
+    if (!shadow) { onScreen = true; sxc = sx; syc = sy; }
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(q.h + cam.rot + Math.PI / 2);
     if (shadow) { ctx.globalAlpha = 0.18; ctx.filter = 'brightness(0)'; }
-    else if (night > 0.01) { const n = nightSprite('airplane'); ctx.drawImage(im, -w / 2, -hgt / 2, w, hgt); if (n) { ctx.globalAlpha = night * 0.7; ctx.drawImage(n, -w / 2, -hgt / 2, w, hgt); } ctx.restore(); continue; }
     ctx.drawImage(im, -w / 2, -hgt / 2, w, hgt);
+    if (!shadow && night > 0.01) { const n = nightSprite('airplane'); if (n) { ctx.globalAlpha = night * 0.7; ctx.drawImage(n, -w / 2, -hgt / 2, w, hgt); } }
     ctx.restore();
+  }
+  // hum: louder near the middle of the screen, silent when the plane is off screen
+  let g = 0;
+  if (onScreen) { const d = Math.hypot(sxc - W / 2, syc - H / 2) / Math.hypot(W / 2, H / 2); g = clamp(1.2 - d, 0, 1) * (0.35 + 0.65 * Math.max(alt, plane.v / AIR_V)); }
+  planeHum(g);
+}
+function endPlane() { plane = null; planeTimer = 120 + Math.random() * 60; planeHum(0); }
+let hum = null;
+async function planeHum(g) {
+  if (muted) g = 0;
+  if (!hum && g > 0.01) {
+    hum = { starting: true };
+    const b = await sound('plane', IOS ? 'snd/plane.wav' : 'snd/plane.ogg'), a = audio();
+    if (!b || !a) { hum = null; return; }
+    const src = a.createBufferSource(), gain = a.createGain(); src.buffer = b; src.loop = true;
+    gain.gain.value = 0; src.connect(gain).connect(a.destination); src.start();
+    hum = { src, gain };
+  }
+  if (hum && hum.gain) {
+    hum.gain.gain.setTargetAtTime(g * 0.6, actx.currentTime, 0.25);
+    if (g <= 0.01 && !plane) { const h = hum; hum = null; h.gain.gain.setTargetAtTime(0, actx.currentTime, 0.2); setTimeout(() => { try { h.src.stop(); } catch (e) { } }, 1200); }
   }
 }
 function drawConfetti(dt) {
@@ -1776,6 +1834,7 @@ function drawFuel(dt) {
   $('fuelBar').style.width = Math.round(fuel * 100) + '%';
   $('fuelBar').style.background = fuel < 0.25 ? '#F2545B' : fuel < 0.5 ? '#FFB020' : '#27AE60';
   el.classList.toggle('low', low && mode === 'idle');
+  $('fuelWarn').classList.toggle('hidden', !(low && mode === 'idle'));
   el.classList.toggle('hidden', mode === 'preview');
 }
 function nearestGas() {
@@ -1873,7 +1932,7 @@ function buildGarage() {
     const pic = document.createElement('div'); pic.className = 'pic'; const i = document.createElement('img'); i.src = IMG[name].src; pic.appendChild(i);
     const l = document.createElement('div'); l.className = 'lbl'; l.textContent = label;
     b.append(pic, l);
-    b.onclick = () => { carSkin = name; try { localStorage.setItem('carSkin', name); } catch (e) { } $('btnCar').innerHTML = `<img src="${IMG[name].src}" alt="">`; $('garage').classList.add('hidden'); };
+    b.onclick = () => { carSkin = name; try { localStorage.setItem('carSkin', name); } catch (e) { } buildGarage(); };
     box.appendChild(b);
   }
   $('btnCar').innerHTML = `<img src="${(IMG[carSkin] || IMG.car_top || IMG.car).src}" alt="">`;
@@ -1907,7 +1966,7 @@ $('photoFile').onchange = e => {
 $('btnCar').onclick = () => { buildGarage(); $('garage').classList.toggle('hidden'); $('settings').classList.add('hidden'); };
 // settings: opens on a long press so the child does not open it by accident
 function openSettings() {
-  showDriver(); showEngineToggle(); showVoiceToggle(); showDayMode(); showDiag();
+  buildGarage(); showMuteToggle(); showDriver(); showEngineToggle(); showVoiceToggle(); showDayMode(); showDiag();
   $('settings').classList.remove('hidden'); $('garage').classList.add('hidden');
 }
 (() => {
@@ -1921,6 +1980,8 @@ $('settingsClose').onclick = () => $('settings').classList.add('hidden');
 const DAY_NAMES = { auto: '🌗 Время суток: как на часах', day: '☀️ Время суток: всегда день', night: '🌙 Время суток: всегда ночь' };
 function showDayMode() { $('dayMode').textContent = DAY_NAMES[dayMode]; }
 $('dayMode').onclick = () => { dayMode = { auto: 'day', day: 'night', night: 'auto' }[dayMode]; try { localStorage.setItem('dayMode', dayMode); } catch (e) { } showDayMode(); };
+function showMuteToggle() { $('muteToggle').textContent = muted ? '🔇 Весь звук: выкл' : '🔊 Весь звук: вкл'; }
+$('muteToggle').onclick = () => { muted = !muted; try { localStorage.setItem('muted', muted ? '1' : '0'); } catch (e) { } if (muted) { speechSynthesis?.cancel(); engineStop(); } showMuteToggle(); };
 function showVoiceToggle() { $('voiceToggle').textContent = voiceOn ? '🗣️ Голос навигатора: вкл' : '🤐 Голос навигатора: выкл'; }
 $('voiceToggle').onclick = () => { voiceOn = !voiceOn; try { localStorage.setItem('voiceOn', voiceOn ? '1' : '0'); } catch (e) { } if (!voiceOn) speechSynthesis?.cancel(); showVoiceToggle(); };
 function testPhrase() { return kidName ? `Проверка голоса, ${kidName}` : 'Проверка голоса'; }
@@ -1953,6 +2014,7 @@ function clickSound() {
   src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start();
 }
 $('btnLights').onclick = () => { clickSound(); lightsOn = !lightsOn; $('btnLights').classList.toggle('on', lightsOn); };
+$('fuelWarn').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('fuel').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('engineToggle').onclick = () => {
   engineOn = !engineOn; try { localStorage.setItem('engineOn', engineOn ? '1' : '0'); } catch (e) { }
