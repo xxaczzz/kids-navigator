@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v30'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v31'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -1560,17 +1560,19 @@ function drawCar(t) {
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
     ctx.drawImage(top, -wpx / 2, -hh / 2, wpx, hh);
-    if (carSkin === 'car_police' && mode === 'nav') {
-      // flashing roof lights
-      const on = Math.floor(t * 4) % 2;
+    if (carSkin === 'car_police' && sirenOn) {
+      // flashing roof lights while the siren is on
+      const on = Math.floor(t * 5) % 2;
       for (const [x, col, lit] of [[-0.24, '#1E6BFF', on], [0.24, '#FF2D2D', 1 - on]]) {
         if (!lit) continue;
-        const g = ctx.createRadialGradient(x * wpx, -0.23 * hh, 0, x * wpx, -0.23 * hh, wpx * 0.55);
-        g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 0.75; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x * wpx, -0.23 * hh, wpx * 0.55, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+        const R = wpx * 1.1;
+        const g = ctx.createRadialGradient(x * wpx, -0.23 * hh, 0, x * wpx, -0.23 * hh, R);
+        g.addColorStop(0, col); g.addColorStop(0.35, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.8; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x * wpx, -0.23 * hh, R, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
       }
     }
     ctx.restore();
+    if (performance.now() < meowUntil) drawBubble(sx, sy - Math.max(wpx, hh) * 0.75, 'Мяу!');
     return;
   }
   let im = IMG[name], rot = clamp(r * tilt, -0.45, 0.45);
@@ -1580,6 +1582,17 @@ function drawCar(t) {
   ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, wpx * 0.12, wpx * 0.52, wpx * 0.22, 0, 0, TAU); ctx.fill();
   ctx.rotate(rot); ctx.scale(flip, 1);
   if (im) { const hh = wpx * im.height / im.width; ctx.drawImage(im, -wpx / 2, -hh * 0.75, wpx, hh); }
+  ctx.restore();
+}
+function drawBubble(x, y, text) {
+  ctx.save();
+  ctx.font = '800 20px system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 24, h = 34, bx = x - w / 2, by = y - h - 10;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1D2A44'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(bx, by, w, h, 14); ctx.moveTo(x - 7, by + h); ctx.lineTo(x, by + h + 10); ctx.lineTo(x + 7, by + h);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillRect(x - 6, by + h - 3, 12, 4);
+  ctx.fillStyle = '#1D2A44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, by + h / 2 + 1);
   ctx.restore();
 }
 function drawPin(t) {
@@ -1728,6 +1741,7 @@ function startNav() {
   mode = 'nav';
   trip.s = 0; trip.v = 0; trip.idx = 0; trip.mi = 0; trip.said = {};
   navZoom = 1; navFreeUntil = 0;
+  setSpecial();
   say(kidName ? `${kidName}, поехали! ${trip.poi.phrase}!` : trip.poi.phrase + '! Поехали!', true);
   requestWake();
   ui();
@@ -1738,7 +1752,7 @@ function stopNav() {
     if (r) car.node = nodeAtRoad(r); // the car stays here; the next trip starts from this spot
   }
   mode = 'idle'; trip = null;
-  engineStop(); saveFuel();
+  engineStop(); sirenStop(); saveFuel();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   releaseWake();
   tgt.x = car.x; tgt.y = car.y; tgt.rot = 0; tgt.scale = baseScale() * userZoom; tgt.fy = 0.5;
@@ -1758,7 +1772,7 @@ function arrive() {
   } else { arPic.className = 'pic'; setPic(arPic, trip.poi); }
   $('arName').textContent = trip.poi.name;
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
-  engineStop(); saveFuel();
+  engineStop(); sirenStop(); saveFuel();
   if (isGas(trip.poi) && fuel < 0.99) { say('Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
   releaseWake();
@@ -1846,7 +1860,7 @@ function updateTrip(dt) {
   if (mode !== 'nav' || !trip) return;
   const P = trip.path;
   const lim = P[trip.idx].lim, ahead = P[Math.min(P.length - 1, trip.idx + 6)].lim;
-  const vt = Math.min(lim, ahead);
+  const vt = Math.min(lim, ahead) * (sirenOn ? 1.2 : 1);
   if (trip.v < vt) trip.v = Math.min(vt, trip.v + 22 * dt); else trip.v = Math.max(vt, trip.v - 40 * dt);
   trip.v = Math.max(trip.v, 4);
   trip.s += trip.v * dt;
@@ -1981,7 +1995,7 @@ const DAY_NAMES = { auto: '🌗 Время суток: как на часах', 
 function showDayMode() { $('dayMode').textContent = DAY_NAMES[dayMode]; }
 $('dayMode').onclick = () => { dayMode = { auto: 'day', day: 'night', night: 'auto' }[dayMode]; try { localStorage.setItem('dayMode', dayMode); } catch (e) { } showDayMode(); };
 function showMuteToggle() { $('muteToggle').textContent = muted ? '🔇 Весь звук: выкл' : '🔊 Весь звук: вкл'; }
-$('muteToggle').onclick = () => { muted = !muted; try { localStorage.setItem('muted', muted ? '1' : '0'); } catch (e) { } if (muted) { speechSynthesis?.cancel(); engineStop(); } showMuteToggle(); };
+$('muteToggle').onclick = () => { muted = !muted; try { localStorage.setItem('muted', muted ? '1' : '0'); } catch (e) { } if (muted) { speechSynthesis?.cancel(); engineStop(); sirenStop(); } showMuteToggle(); };
 function showVoiceToggle() { $('voiceToggle').textContent = voiceOn ? '🗣️ Голос навигатора: вкл' : '🤐 Голос навигатора: выкл'; }
 $('voiceToggle').onclick = () => { voiceOn = !voiceOn; try { localStorage.setItem('voiceOn', voiceOn ? '1' : '0'); } catch (e) { } if (!voiceOn) speechSynthesis?.cancel(); showVoiceToggle(); };
 function testPhrase() { return kidName ? `Проверка голоса, ${kidName}` : 'Проверка голоса'; }
@@ -2014,6 +2028,46 @@ function clickSound() {
   src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start();
 }
 $('btnLights').onclick = () => { clickSound(); lightsOn = !lightsOn; $('btnLights').classList.toggle('on', lightsOn); };
+// ---------- special button: siren for police, meow for the cat, horn for the others ----------
+const SIREN_FILE = IOS ? 'snd/siren.wav' : 'snd/siren.ogg';
+const HORNS = { car_top: 'snd/horn1.mp3', car_blue: 'snd/horn2.mp3' };
+let sirenOn = false, siren = null, meowUntil = 0;
+function setSpecial() {
+  sirenOn = false; $('btnSpecial').classList.remove('on');
+  $('btnSpecial').textContent = carSkin === 'car_police' ? '🚨' : carSkin === 'car_cat' ? '🐾' : '📯';
+  if (carSkin === 'car_police') sound('siren', SIREN_FILE);
+  else if (carSkin === 'car_cat') sound('meow', 'snd/meow.mp3');
+  else sound('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top);
+}
+async function playOnce(name, file, vol) {
+  if (muted) return;
+  const b = await sound(name, file), a = audio(); if (!b || !a) return;
+  const s = a.createBufferSource(), g = a.createGain(); g.gain.value = vol; s.buffer = b; s.connect(g).connect(a.destination); s.start();
+}
+async function sirenStart() {
+  if (muted || siren) return;
+  siren = { starting: true };
+  const b = await sound('siren', SIREN_FILE), a = audio();
+  if (!b || !a || !sirenOn) { siren = null; return; }
+  const src = a.createBufferSource(), gain = a.createGain(); src.buffer = b; src.loop = true;
+  gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.45, a.currentTime + 0.3);
+  src.connect(gain).connect(a.destination); src.start(); siren = { src, gain };
+}
+function sirenStop() {
+  sirenOn = false; $('btnSpecial').classList.remove('on');
+  const s = siren; siren = null;
+  if (s && s.gain) { s.gain.gain.setTargetAtTime(0, actx.currentTime, 0.1); setTimeout(() => { try { s.src.stop(); } catch (e) { } }, 600); }
+}
+$('btnSpecial').onclick = () => {
+  if (mode !== 'nav') return;
+  if (carSkin === 'car_police') {
+    if (sirenOn) { sirenStop(); return; }
+    sirenOn = true; $('btnSpecial').classList.add('on'); sirenStart();
+    say('Внимание, полиция едет!');
+  } else if (carSkin === 'car_cat') {
+    meowUntil = performance.now() + 1800; playOnce('meow', 'snd/meow.mp3', 1);
+  } else playOnce('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top, 0.8);
+};
 $('fuelWarn').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('fuel').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('engineToggle').onclick = () => {
