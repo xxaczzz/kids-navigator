@@ -143,6 +143,9 @@
   /* low fuel warning light */
   #fuelWarn { position: fixed; left: 12px; top: calc(env(safe-area-inset-top) + 12px); width: 64px; height: 64px; border-radius: 50%;
     background: #2E3442; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.3), 0 0 0 4px #fff; animation: warn 1.4s ease-in-out infinite; }
+  #fuelWarn .bolt { display: none; font-size: 34px; filter: drop-shadow(0 0 6px rgba(255,194,26,.9)); }
+  #fuelWarn.ev .bolt { display: block; }
+  #fuelWarn.ev svg { display: none; }
   #fuelWarn svg { width: 36px; height: 36px; fill: #FFC21A; filter: drop-shadow(0 0 6px rgba(255,194,26,.9)); }
   @keyframes warn { 50% { box-shadow: 0 4px 14px rgba(0,0,0,.3), 0 0 0 4px #FFC21A, 0 0 22px 6px rgba(255,194,26,.6); } }
   #btnSettings { left: 12px; bottom: calc(env(safe-area-inset-bottom) + 132px); width: 48px; height: 48px; font-size: 22px; opacity: .85; }
@@ -194,7 +197,7 @@
 
 <div id="garage" class="card hidden gone"><button id="garageClose"></button></div>
 
-<button id="fuelWarn" class="hidden" aria-label="Мало бензина, на заправку"><svg viewBox="0 0 24 24"><path d="M5 3h8a1 1 0 0 1 1 1v8h1.5a2 2 0 0 1 2 2v3a1 1 0 0 0 2 0V9l-2.3-2.3 1.4-1.4L21.4 8A2 2 0 0 1 22 9.4V17a3 3 0 0 1-6 0v-3h-2v7H4V4a1 1 0 0 1 1-1zm1 2v5h6V5z"/></svg></button>
+<button id="fuelWarn" class="hidden" aria-label="Мало бензина, на заправку"><span class="bolt">⚡</span><svg viewBox="0 0 24 24"><path d="M5 3h8a1 1 0 0 1 1 1v8h1.5a2 2 0 0 1 2 2v3a1 1 0 0 0 2 0V9l-2.3-2.3 1.4-1.4L21.4 8A2 2 0 0 1 22 9.4V17a3 3 0 0 1-6 0v-3h-2v7H4V4a1 1 0 0 1 1-1zm1 2v5h6V5z"/></svg></button>
 <button id="btnSettings" class="round" aria-label="Настройки">⚙️</button>
 <div id="settings" class="card hidden">
   <div class="row" style="justify-content:space-between"><h2>Настройки</h2><button class="cancel" id="settingsClose" style="width:52px;height:52px">✕</button></div>

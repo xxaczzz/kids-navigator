@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v31'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v32'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -309,6 +309,8 @@ const POI_DEFS = [
   ['shop', 'Магазин', 'shop', '🛒', 'Ah3,3', .5, -1, 140, 'Едем в магазин'],
   ['gas', 'Заправка', 'gas_station', '⛽', 'Ah5,2', .5, 1, 170, 'Едем на заправку'],
   ['gas2', 'Заправка', 'gas_station', '⛽', 'Bh6,3', .5, 1, 170, 'Едем на заправку'],
+  ['chargeW', 'Зарядка', 'charger', '⚡', 'Ah0,1', .5, 1, 160, 'Едем на зарядку'],
+  ['chargeE', 'Зарядка', 'charger', '⚡', 'Bv7,0', .5, 1, 160, 'Едем на зарядку'],
   ['fire', 'Пожарные', 'fire_station', '🚒', 'Av6,0', .5, -1, 160, 'Едем к пожарным'],
   ['park', 'Парк', 'playground', '🛝', 'Ah5,0', .45, 1, 170, 'Едем в парк'],
   ['police', 'Полиция', 'police', '🚓', 'Av4,3', .5, 1, 160, 'Едем в полицию'],
@@ -368,7 +370,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -995,7 +997,8 @@ function buildPath(route) {
   out.forEach((q, i) => {
     const a = out[Math.max(0, i - 4)], b = out[Math.min(N - 1, i + 4)];
     const ds = (b.s - a.s) || 1, k = Math.abs(angDiff(b.h, a.h)) / ds;
-    q.lim = Math.min(q.vmax, k > 1e-4 ? Math.sqrt(ALAT / k) : 999);
+    q.cl = k > 1e-4 ? Math.sqrt(ALAT / k) : 999;
+    q.lim = Math.min(q.vmax, q.cl);
   });
   out[N - 1].lim = 0;
   for (let i = N - 2; i >= 0; i--) out[i].lim = Math.min(out[i].lim, Math.sqrt(out[i + 1].lim ** 2 + 2 * DEC * (out[i + 1].s - out[i].s)));
@@ -1063,7 +1066,8 @@ let W = 0, H = 0, DPR = 1;
 const cam = { x: 0, y: 0, rot: 0, scale: 1, fy: 0.5 };
 const tgt = { x: 0, y: 0, rot: 0, scale: 1, fy: 0.5 };
 let mode = 'idle'; // idle | preview | nav | arrived
-const CARS = [['car_top', 'Красная'], ['car_police', 'Полиция'], ['car_cat', 'Котик'], ['car_blue', 'Синяя']];
+const CARS = [['car_top', 'Красная'], ['car_police', 'Полиция'], ['car_cat', 'Котик'], ['car_blue', 'Синяя'], ['car_race', 'Гоночная'], ['car_tesla', 'Тесла']];
+const isEV = () => carSkin === 'car_tesla';
 let carSkin = 'car_top';
 try { carSkin = localStorage.getItem('carSkin') || 'car_top'; } catch (e) { /* storage blocked */ }
 let userZoom = 1;
@@ -1478,6 +1482,13 @@ function drawFuelGauge(f) {
   g.strokeStyle = '#3F4759'; g.beginPath(); g.arc(cx, cy, R, a0, a1); g.stroke();
   g.strokeStyle = f < 0.25 ? '#F2545B' : f < 0.5 ? '#FFB020' : '#6BE38A'; g.beginPath(); g.arc(cx, cy, R, a0, a); g.stroke();
   g.fillStyle = '#C7CCD6'; g.font = '800 15px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (isEV()) {
+    // battery: percent with a lightning bolt instead of the needle
+    g.fillStyle = f < 0.25 && Math.floor(performance.now() / 700) % 2 === 0 ? '#FFC21A' : '#fff';
+    g.font = '800 20px system-ui'; g.fillText(Math.round(f * 100) + '%', cx, cy - 8);
+    g.font = '22px system-ui'; g.fillText('⚡', cx, cy + 20);
+    return;
+  }
   g.fillText('E', cx + Math.cos(a0) * (R + 2) - 6, cy + Math.sin(a0) * (R + 2) + 12); g.fillText('F', cx + Math.cos(a1) * (R + 2) + 6, cy + Math.sin(a1) * (R + 2) + 12);
   g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * (R - 8), cy + Math.sin(a) * (R - 8)); g.stroke();
   if (f < 0.25) {
@@ -1556,8 +1567,9 @@ function drawCar(t) {
   const top = IMG[carSkin] || IMG.car_top;
   if (top) {
     // top view car: just turn it with the road
-    const wpx = Math.max(18, 36 * cam.scale), hh = wpx * top.height / top.width;
+    const hh = Math.max(18, 36 * cam.scale) * 384 / 257, wpx = hh * top.width / top.height; // same length for every car
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
+    if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
     ctx.drawImage(top, -wpx / 2, -hh / 2, wpx, hh);
     if (carSkin === 'car_police' && sirenOn) {
@@ -1572,6 +1584,7 @@ function drawCar(t) {
       }
     }
     ctx.restore();
+    if (refuelAnim && isEV()) drawSparks(t, sx, sy, Math.max(wpx, hh));
     if (performance.now() < meowUntil) drawBubble(sx, sy - Math.max(wpx, hh) * 0.75, 'Мяу!');
     return;
   }
@@ -1582,6 +1595,39 @@ function drawCar(t) {
   ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0, wpx * 0.12, wpx * 0.52, wpx * 0.22, 0, 0, TAU); ctx.fill();
   ctx.rotate(rot); ctx.scale(flip, 1);
   if (im) { const hh = wpx * im.height / im.width; ctx.drawImage(im, -wpx / 2, -hh * 0.75, wpx, hh); }
+  ctx.restore();
+}
+function drawBoost(t, wpx, hh) {
+  // under the car: fire for the race car, a blue glow for the Tesla
+  const ev = isEV(), y0 = hh * 0.48;
+  if (ev) {
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, hh * 0.85);
+    g.addColorStop(0, 'rgba(80,190,255,.55)'); g.addColorStop(1, 'rgba(80,190,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, wpx * 1.1, hh * 0.85, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#BFF0FF'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const k = (t * 3 + i / 5) % 1, x = (((i * 37) % 10) / 10 - 0.5) * wpx * 0.9, y = y0 + k * hh * 0.7;
+      ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + wpx * 0.08, y + hh * 0.06); ctx.lineTo(x - wpx * 0.04, y + hh * 0.1); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    for (const x of [-0.16, 0.16]) {
+      const L = hh * (0.75 + 0.2 * Math.sin(t * 40 + x * 50)), w = wpx * 0.2;
+      const g = ctx.createLinearGradient(0, y0, 0, y0 + L);
+      g.addColorStop(0, '#FFF6A0'); g.addColorStop(0.35, '#FFB020'); g.addColorStop(1, 'rgba(255,60,20,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x * wpx - w, y0); ctx.quadraticCurveTo(x * wpx, y0 + L * 1.2, x * wpx + w, y0); ctx.fill();
+    }
+  }
+}
+function drawSparks(t, x, y, r) {
+  // a small lightning bolt runs around the car while it charges
+  ctx.save(); ctx.translate(x, y);
+  for (let i = 0; i < 2; i++) {
+    const a = t * 4 + i * Math.PI;
+    ctx.save(); ctx.translate(Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.75);
+    ctx.font = `${Math.round(r * 0.5)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', 0, 0);
+    ctx.restore();
+  }
   ctx.restore();
 }
 function drawBubble(x, y, text) {
@@ -1773,7 +1819,7 @@ function arrive() {
   $('arName').textContent = trip.poi.name;
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
   engineStop(); sirenStop(); saveFuel();
-  if (isGas(trip.poi) && fuel < 0.99) { say('Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
+  if (isGas(trip.poi) && fuel < 0.99) { say(isEV() ? 'Заряжаемся!' : 'Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
   releaseWake();
   ui();
@@ -1829,26 +1875,31 @@ async function ignition() {
 // ---------- fuel ----------
 const FUEL_METERS = 35000, FUEL_MIN = 0.05; // a full tank is about 8 trips; never runs dry
 let fuel = 1, fuelSaved = 0, refuelAnim = null;
-try { const f = parseFloat(localStorage.getItem('fuel')); if (f >= 0) fuel = Math.max(FUEL_MIN, Math.min(1, f)); } catch (e) { }
-const saveFuel = () => { try { localStorage.setItem('fuel', fuel.toFixed(3)); } catch (e) { } };
-const isGas = p => p && (p.key === 'gas' || p.key === 'gas2');
+// the Tesla has its own battery; all the other cars share one fuel tank
+const fuelKey = () => isEV() ? 'battery' : 'fuel';
+function loadFuel() { fuel = 1; try { const f = parseFloat(localStorage.getItem(fuelKey())); if (f >= 0) fuel = Math.max(FUEL_MIN, Math.min(1, f)); } catch (e) { } }
+loadFuel();
+const saveFuel = () => { try { localStorage.setItem(fuelKey(), fuel.toFixed(3)); } catch (e) { } };
+const isGas = p => p && (isEV() ? p.key === 'chargeW' || p.key === 'chargeE' : p.key === 'gas' || p.key === 'gas2');
 function burnFuel(meters) {
   const before = fuel;
   fuel = Math.max(FUEL_MIN, fuel - meters / FUEL_METERS);
   const who = kidName ? kidName + ', ' : '';
-  if (before > 0.15 && fuel <= 0.15) say(cap(who + 'бензин заканчивается! Поехали на заправку!'));
+  if (before > 0.15 && fuel <= 0.15) say(cap(who + (isEV() ? 'батарея садится! Поехали на зарядку!' : 'бензин заканчивается! Поехали на заправку!')));
   if (performance.now() - fuelSaved > 3000) { fuelSaved = performance.now(); saveFuel(); }
 }
 function drawFuel(dt) {
+  drawBoostButton();
   if (refuelAnim) {
-    fuel = Math.min(1, fuel + dt / 4);
-    if (fuel >= 1) { refuelAnim = null; saveFuel(); say('Бак полный! Можно ехать!'); }
+    fuel = Math.min(1, fuel + dt / (isEV() ? 9 : 4));
+    if (fuel >= 1) { refuelAnim = null; saveFuel(); say(isEV() ? 'Батарея заряжена!' : 'Бак полный! Можно ехать!'); }
   }
   const el = $('fuel'), low = fuel < 0.25;
   $('fuelBar').style.width = Math.round(fuel * 100) + '%';
   $('fuelBar').style.background = fuel < 0.25 ? '#F2545B' : fuel < 0.5 ? '#FFB020' : '#27AE60';
   el.classList.toggle('low', low && mode === 'idle');
   $('fuelWarn').classList.toggle('hidden', !(low && mode === 'idle'));
+  $('fuelWarn').classList.toggle('ev', isEV());
   el.classList.toggle('hidden', mode === 'preview');
 }
 function nearestGas() {
@@ -1860,8 +1911,10 @@ function updateTrip(dt) {
   if (mode !== 'nav' || !trip) return;
   const P = trip.path;
   const lim = P[trip.idx].lim, ahead = P[Math.min(P.length - 1, trip.idx + 6)].lim;
-  const vt = Math.min(lim, ahead) * (sirenOn ? 1.2 : 1);
-  if (trip.v < vt) trip.v = Math.min(vt, trip.v + 22 * dt); else trip.v = Math.max(vt, trip.v - 40 * dt);
+  let vt = Math.min(lim, ahead) * (sirenOn ? 1.2 : 1);
+  const boosting = performance.now() < boostUntil;
+  if (boosting) { let cl = 999; for (let i = trip.idx; i < Math.min(P.length, trip.idx + 14); i++) cl = Math.min(cl, P[i].cl); vt = Math.max(vt, Math.min(vt * 2, cl)); }
+  if (trip.v < vt) trip.v = Math.min(vt, trip.v + (boosting ? 70 : 22) * dt); else trip.v = Math.max(vt, trip.v - 40 * dt);
   trip.v = Math.max(trip.v, 4);
   trip.s += trip.v * dt;
   burnFuel(trip.v * dt);
@@ -1946,7 +1999,7 @@ function buildGarage() {
     const pic = document.createElement('div'); pic.className = 'pic'; const i = document.createElement('img'); i.src = IMG[name].src; pic.appendChild(i);
     const l = document.createElement('div'); l.className = 'lbl'; l.textContent = label;
     b.append(pic, l);
-    b.onclick = () => { carSkin = name; try { localStorage.setItem('carSkin', name); } catch (e) { } buildGarage(); };
+    b.onclick = () => { saveFuel(); refuelAnim = null; carSkin = name; try { localStorage.setItem('carSkin', name); } catch (e) { } loadFuel(); buildGarage(); };
     box.appendChild(b);
   }
   $('btnCar').innerHTML = `<img src="${(IMG[carSkin] || IMG.car_top || IMG.car).src}" alt="">`;
@@ -2006,7 +2059,7 @@ function speakNow(text) {
   speechSynthesis.speak(u);
 }
 $('testVoice').onclick = () => speakNow(testPhrase());
-$('refuel').onclick = () => { fuel = 1; saveFuel(); diagNote('бак полный'); };
+$('refuel').onclick = () => { fuel = 1; saveFuel(); diagNote(isEV() ? 'батарея заряжена' : 'бак полный'); };
 $('forceUpdate').onclick = async () => {
   diagNote('обновляю...');
   try { const regs = await navigator.serviceWorker?.getRegistrations(); for (const r of regs || []) await r.unregister(); } catch (e) { }
@@ -2031,11 +2084,14 @@ $('btnLights').onclick = () => { clickSound(); lightsOn = !lightsOn; $('btnLight
 // ---------- special button: siren for police, meow for the cat, horn for the others ----------
 const SIREN_FILE = IOS ? 'snd/siren.wav' : 'snd/siren.ogg';
 const HORNS = { car_top: 'snd/horn1.mp3', car_blue: 'snd/horn2.mp3' };
-let sirenOn = false, siren = null, meowUntil = 0;
+let sirenOn = false, siren = null, meowUntil = 0, boostUntil = 0, boostReady = 0;
+const BOOST_MS = 5000, BOOST_CD = 10000;
 function setSpecial() {
   sirenOn = false; $('btnSpecial').classList.remove('on');
-  $('btnSpecial').textContent = carSkin === 'car_police' ? '🚨' : carSkin === 'car_cat' ? '🐾' : '📯';
-  if (carSkin === 'car_police') sound('siren', SIREN_FILE);
+  boostUntil = 0; boostReady = 0; $('btnSpecial').style.background = '';
+  $('btnSpecial').textContent = { car_police: '🚨', car_cat: '🐾', car_race: '🔥', car_tesla: '⚡' }[carSkin] || '📯';
+  if (carSkin === 'car_race' || carSkin === 'car_tesla') sound('nitro', 'snd/nitro.mp3');
+  else if (carSkin === 'car_police') sound('siren', SIREN_FILE);
   else if (carSkin === 'car_cat') sound('meow', 'snd/meow.mp3');
   else sound('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top);
 }
@@ -2053,6 +2109,16 @@ async function sirenStart() {
   gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.45, a.currentTime + 0.3);
   src.connect(gain).connect(a.destination); src.start(); siren = { src, gain };
 }
+function drawBoostButton() {
+  // the button is grey while the boost recharges and fills up from the bottom
+  if (mode !== 'nav' || (carSkin !== 'car_race' && carSkin !== 'car_tesla')) return;
+  const b = $('btnSpecial'), now = performance.now(), col = carSkin === 'car_race' ? '#FF7A1A' : '#2FB8FF';
+  let bg;
+  if (now < boostUntil) bg = col;
+  else if (now < boostReady) { const k = Math.round(100 * (1 - (boostReady - now) / BOOST_CD)); bg = `linear-gradient(to top, ${col}88 ${k}%, #2A303C ${k}%)`; }
+  else bg = '#3A4152';
+  if (b.dataset.bg !== bg) { b.dataset.bg = bg; b.style.background = bg; b.style.filter = now < boostReady && now >= boostUntil ? 'grayscale(.7)' : ''; }
+}
 function sirenStop() {
   sirenOn = false; $('btnSpecial').classList.remove('on');
   const s = siren; siren = null;
@@ -2064,6 +2130,9 @@ $('btnSpecial').onclick = () => {
     if (sirenOn) { sirenStop(); return; }
     sirenOn = true; $('btnSpecial').classList.add('on'); sirenStart();
     say('Внимание, полиция едет!');
+  } else if (carSkin === 'car_race' || carSkin === 'car_tesla') {
+    const now = performance.now(); if (now < boostReady) return;
+    boostUntil = now + BOOST_MS; boostReady = now + BOOST_MS + BOOST_CD; playOnce('nitro', 'snd/nitro.mp3', 0.9);
   } else if (carSkin === 'car_cat') {
     meowUntil = performance.now() + 1800; playOnce('meow', 'snd/meow.mp3', 1);
   } else playOnce('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top, 0.8);
