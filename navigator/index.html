@@ -75,7 +75,26 @@
   #speed b { font-size: 24px; display: block; }
   #speed span { font-size: 11px; color: var(--muted); }
 
-  /* trip bar */
+  /* dashboard during a trip */
+  #dash {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 8px 10px calc(env(safe-area-inset-bottom) + 8px);
+    background: linear-gradient(#2E3442, #1E222C); border-radius: 26px 26px 0 0; box-shadow: 0 -4px 18px rgba(0,0,0,.35);
+    display: flex; align-items: center; gap: 6px; color: #fff;
+  }
+  #dash canvas { position: static; inset: auto; display: block; touch-action: auto; }
+  #gauge { width: 120px; height: 72px; flex: none; }
+  #fgauge { width: 64px; height: 64px; flex: none; }
+  #dash .mid { flex: 1; text-align: center; min-width: 0; }
+  #dash #tTime { font-size: 28px; font-weight: 800; color: #6BE38A; line-height: 1.1; }
+  #dash #tInfo { font-size: 15px; color: #C7CCD6; font-weight: 600; white-space: nowrap; }
+  #btnLights { width: 52px; height: 52px; border-radius: 16px; background: #3A4152; font-size: 24px; flex: none; filter: grayscale(1) brightness(.7); }
+  #btnLights.on { background: #FFD23F; filter: none; box-shadow: 0 0 16px rgba(255,210,63,.7); }
+  body.nav #speed, body.nav #fuel { display: none !important; }
+  body.nav #btnStop { bottom: calc(env(safe-area-inset-bottom) + 100px); }
+  body.nav #btnMute { bottom: calc(env(safe-area-inset-bottom) + 100px); }
+  body.nav #btnCenter { bottom: calc(env(safe-area-inset-bottom) + 166px); }
+  /* trip bar (old) */
   #tripbar {
     position: fixed; left: 0; right: 0; bottom: 0;
     padding: 14px 20px calc(env(safe-area-inset-bottom) + 14px);
@@ -114,6 +133,17 @@
   .go { flex: 1; height: 66px; border-radius: 20px; background: var(--green); color: #fff; font-size: 28px; font-weight: 800; box-shadow: 0 4px 0 #1E8449; }
   .go:active { transform: translateY(3px); box-shadow: 0 1px 0 #1E8449; }
   .cancel { width: 66px; height: 66px; border-radius: 20px; background: #F3F4F6; font-size: 26px; }
+  #btnSettings { left: 12px; bottom: calc(env(safe-area-inset-bottom) + 132px); width: 48px; height: 48px; font-size: 22px; opacity: .85; }
+  #btnSettings.holding { transform: scale(1.15); background: #FFD23F; transition: transform .9s, background .9s; }
+  #settings { top: calc(env(safe-area-inset-top) + 10px); bottom: auto; max-height: calc(100% - 20px); overflow-y: auto; z-index: 30; }
+  #settings .sec { margin: 16px 0 8px; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #settings .driver { margin-top: 0; padding-top: 0; border-top: 0; }
+  .setbtn { display: block; width: 100%; min-height: 50px; margin-top: 8px; padding: 10px 14px; border-radius: 14px; background: #F3F4F6; font-size: 17px; font-weight: 700; text-align: left; }
+  .setbtn:active { background: #DBEAFE; }
+  #settings .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #settings .two .setbtn { font-size: 15px; }
+  .diag { font-size: 15px; line-height: 1.6; color: #374151; user-select: text; -webkit-user-select: text; }
+  .diag.note { min-height: 22px; color: #1F6FD1; font-weight: 700; }
   .driver { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding-top: 14px; border-top: 2px solid #F3F4F6; }
   .avatar { width: 76px; height: 76px; border-radius: 50%; background: #F3F4F6 center/cover no-repeat; font-size: 30px; flex: none; border: 4px solid #FFD23F; }
   #kidName { width: 100%; font: inherit; font-size: 22px; font-weight: 700; padding: 10px 14px; border-radius: 14px; border: 2px solid #E5E7EB; user-select: text; -webkit-user-select: text; }
@@ -153,18 +183,36 @@
 <div id="garage" class="card hidden">
   <div class="row" style="justify-content:space-between"><h2>Выбери машинку</h2><button class="cancel" id="garageClose" style="width:52px;height:52px">✕</button></div>
   <div id="garageList"></div>
-  <button id="engineToggle" class="cancel" style="width:100%;height:52px;margin-top:12px;font-size:18px;font-weight:700"></button>
-  <div class="driver">
-    <button id="photoBtn" class="avatar" aria-label="Фото водителя">📷</button>
-    <div style="flex:1">
-      <div class="sub" style="margin:0 0 6px">Водитель</div>
-      <input id="kidName" type="text" placeholder="Имя" maxlength="20" autocomplete="off">
-    </div>
-    <input id="photoFile" type="file" accept="image/*" hidden>
-  </div>
 </div>
 
-<div id="tripbar" class="hidden"><div id="tTime"></div><div id="tInfo"></div></div>
+<button id="btnSettings" class="round" aria-label="Настройки">⚙️</button>
+<div id="settings" class="card hidden">
+  <div class="row" style="justify-content:space-between"><h2>Настройки</h2><button class="cancel" id="settingsClose" style="width:52px;height:52px">✕</button></div>
+  <div class="sec">Водитель</div>
+  <div class="driver">
+    <button id="photoBtn" class="avatar" aria-label="Фото водителя">📷</button>
+    <div style="flex:1"><input id="kidName" type="text" placeholder="Имя" maxlength="20" autocomplete="off"></div>
+    <input id="photoFile" type="file" accept="image/*" hidden>
+  </div>
+  <div class="sec">Звук</div>
+  <button id="voiceToggle" class="setbtn"></button>
+  <button id="engineToggle" class="setbtn"></button>
+  <button id="testVoice" class="setbtn">🔈 Проверить голос</button>
+  <div class="sec">Игра</div>
+  <button id="refuel" class="setbtn">⛽ Заправить полный бак</button>
+  <button id="dayMode" class="setbtn"></button>
+  <div class="sec">О приложении</div>
+  <div id="diag" class="diag"></div>
+  <div id="diagNote" class="diag note"></div>
+  <button id="forceUpdate" class="setbtn">🔄 Обновить приложение</button>
+</div>
+
+<div id="dash" class="hidden">
+  <canvas id="gauge" width="200" height="120" aria-label="Спидометр"></canvas>
+  <div class="mid"><div id="tTime"></div><div id="tInfo"></div></div>
+  <canvas id="fgauge" width="120" height="120" aria-label="Бензин"></canvas>
+  <button id="btnLights" aria-label="Фары">💡</button>
+</div>
 
 <div id="dests"></div>
 
