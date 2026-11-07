@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v33'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v35'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -304,7 +304,7 @@ function blvEdgeAt(x) { for (const k in GE) if (k.endsWith('x') && k.startsWith(
 const POI_DEFS = [
   // key, name, sprite, emoji, edge, t, side, world width, phrase
   ['home', 'Дом', 'home', '🏠', 'Ah1,4', .55, 1, 140, 'Едем домой'],
-  ['kindergarten', 'Садик', 'kindergarten', '🧸', 'Av2,3', .5, 1, 165, 'Едем в садик'],
+  ['kindergarten', 'Садик', 'kindergarten', '🧸', 'Av2,3', .5, 1, 200, 'Едем в садик'],
   ['school', 'Школа', 'school', '🏫', 'Av0,2', .5, -1, 175, 'Едем в школу'],
   ['shop', 'Магазин', 'shop', '🛒', 'Ah3,3', .5, -1, 140, 'Едем в магазин'],
   ['gas', 'Заправка', 'gas_station', '⛽', 'Ah5,2', .5, 1, 170, 'Едем на заправку'],
@@ -375,7 +375,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -1044,8 +1044,33 @@ if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged 
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let voiceOn = true;
 try { voiceOn = localStorage.getItem('voiceOn') !== '0'; } catch (e) { }
-function say(text, urgent) {
-  if (muted || !voiceOn || !('speechSynthesis' in window)) return;
+// recorded voice: one file per phrase, snd/v/<code>.mp3 (the list lives in the Map-car project, voice-phrases.md)
+const VOICE_TEXT = {"a01": "Костя, поехали!", "a02": "Ура, Костя, мы приехали!", "b01": "Едем домой", "b02": "Едем в садик", "b03": "Едем в школу", "b04": "Едем в магазин", "b05": "Едем на заправку", "b06": "Едем к пожарным", "b07": "Едем в парк", "b08": "Едем в полицию", "b09": "Едем на мойку", "b10": "Едем в больницу", "b11": "Едем на вокзал", "b12": "Едем в кино", "b13": "Едем на почту", "b14": "Едем на стадион", "b15": "Едем за мороженым", "b16": "Едем в пиццерию", "b17": "Едем в аэропорт", "b18": "Едем на аттракционы", "b19": "Едем к бабушке", "b20": "Едем в зоопарк", "b21": "Едем к маяку", "b22": "Едем в Орби Сити", "b23": "Едем на пляж", "b24": "Едем на пристань", "b25": "Едем в аквапарк", "b26": "Едем в пекарню", "b27": "Едем в библиотеку", "b28": "Едем в цирк", "b29": "Едем за игрушками", "b30": "Едем к динозаврам", "b31": "Едем в ветклинику", "b32": "Едем на ферму", "b33": "Едем в лагерь", "b34": "Едем на пикник", "b35": "Едем в Марриотт", "b36": "Едем на площадь Европы", "b37": "Едем в Гранд Молл", "b38": "Едем в Метро Сити", "b39": "Едем в Макдональдс", "b40": "Едем на курорт", "b41": "Едем в замок", "b42": "Едем в гости", "c01": "Дом", "c02": "Садик", "c03": "Школа", "c04": "Магазин", "c05": "Заправка", "c06": "Пожарные", "c07": "Парк", "c08": "Полиция", "c09": "Мойка", "c10": "Больница", "c11": "Вокзал", "c12": "Кино", "c13": "Почта", "c14": "Стадион", "c15": "Мороженое", "c16": "Пицца", "c17": "Аэропорт", "c18": "Аттракционы", "c19": "Бабушка", "c20": "Зоопарк", "c21": "Маяк", "c22": "Орби Сити", "c23": "Пляж", "c24": "Пристань", "c25": "Аквапарк", "c26": "Пекарня", "c27": "Библиотека", "c28": "Цирк", "c29": "Игрушки", "c30": "Динозавры", "c31": "Ветклиника", "c32": "Ферма", "c33": "Лагерь", "c34": "Пикник", "c35": "Марриотт", "c36": "Площадь Европы", "c37": "Гранд Молл", "c38": "Метро Сити", "c39": "Макдональдс", "c40": "Курорт", "c41": "Замок", "c42": "Домик", "c43": "Многоэтажка", "c44": "Офис", "d01": "Скоро кольцо, первый съезд", "d02": "Скоро кольцо, второй съезд", "d03": "Скоро кольцо, третий съезд", "d04": "Скоро кольцо, четвертый съезд", "d05": "На кольце первый съезд", "d06": "На кольце второй съезд", "d07": "На кольце третий съезд", "d08": "На кольце четвертый съезд", "e01": "Едем прямо, долго-долго", "e02": "Скоро приедем!", "f01": "Костя, бензин заканчивается! Поехали на заправку!", "f02": "Заправляемся!", "f03": "Бак полный! Можно ехать!", "g01": "Поехали!", "g02": "Едем в новое место!", "g03": "Посмотрим, что там!", "g04": "Приехали!", "g05": "Вот мы и на месте!", "g06": "Какое интересное место!", "h01": "Внимание, полиция едет!", "h02": "Костя, батарея садится! Поехали на зарядку!", "h03": "Заряжаемся!", "h04": "Батарея заряжена!", "h05": "Едем на зарядку", "h06": "Едем на парковку", "h07": "Едем в автосервис", "h08": "Ой, Костя! Машинка сломалась! Поехали в автосервис!", "h09": "Чиним машинку!", "h10": "Машинка как новая! Можно ехать!"};
+const vkey = t => String(t).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const VOICE_BY_TEXT = {};
+for (const [c, t] of Object.entries(VOICE_TEXT)) VOICE_BY_TEXT[vkey(t)] = c;
+const clip = t => VOICE_BY_TEXT[vkey(t)];
+let vQueue = [], vNow = null, vEnd = 0;
+async function playClips(codes, urgent) {
+  const a = audio(); if (!a) return false;
+  if (urgent) { vQueue = []; if (vNow) { try { vNow.stop(); } catch (e) { } vNow = null; } vEnd = 0; }
+  const bufs = [];
+  for (const c of codes) { const b = await sound('v_' + c, 'snd/v/' + c + '.mp3'); if (b) bufs.push(b); }
+  if (!bufs.length) return false;
+  let t = Math.max(a.currentTime + 0.05, vEnd);
+  for (const b of bufs) {
+    const src = a.createBufferSource(), g = a.createGain(); g.gain.value = 1.15; src.buffer = b; src.connect(g).connect(a.destination);
+    src.start(t); vNow = src; t += b.duration + 0.12;
+  }
+  vEnd = t;
+  return true;
+}
+// codes: recorded phrases to play; text: what the synthesiser says if there is no recording
+function say(text, urgent, codes) {
+  if (muted || !voiceOn) return;
+  codes = (codes || [clip(text)]).filter(Boolean);
+  if (codes.length) { playClips(codes, urgent); return; }
+  if (!('speechSynthesis' in window)) return;
   if (urgent) speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice; u.rate = 1; u.pitch = 1.05;
@@ -1129,7 +1154,7 @@ const SNOWY = { '#9ED47F': '#EAF1F7', '#7FD08A': '#DCE7F0', '#86CC6A': '#E3ECF4'
 const wc = c => winter ? SNOWY[c] || c : c;
 // snow caps: on each column of a sprite the top few pixels under the outline turn white
 const SNOWCAP = {};
-const NO_SNOW = /^(fir$|snowman$|xmas_tree$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
+const NO_SNOW = /^(fir$|snowman$|xmas_tree$|xmas_small$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
 function snowSprite(name) {
   if (name in SNOWCAP) return SNOWCAP[name];
   const im = IMG[name]; if (!im || NO_SNOW.test(name)) return (SNOWCAP[name] = null);
@@ -1161,6 +1186,11 @@ const WINTER_DECOR = [];
 function buildWinterDecor() {
   decor.forEach((d, i) => { if (/^tree_/.test(d.sprite) && i % 2 === 0) d.fir = true; });
   const taken = [];
+  // festive trees on the roundabout islands instead of fountains and flowers
+  if (IMG.xmas_small) {
+    for (const d of decor) if (d.sprite === 'fountain') d.noWinter = true;
+    for (const rb of roundabouts) { const w = Math.min(90, Math.max(46, (rb.r - RT[rb.type].cw / 2) * 1.1)); WINTER_DECOR.push({ x: rb.cx, y: rb.cy + w * 0.35, w, sprite: 'xmas_small' }); }
+  }
   // the New Year tree stands right on the fountain of Europe Square
   const eu = POIS.find(p => p.key === 'europe');
   if (eu && IMG.xmas_tree && IMG[eu.sprite]) {
@@ -1352,8 +1382,8 @@ function drawRoads(view) {
     ctx.fillStyle = RT[rb.type].casing; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, rb.r - half + 7, 0, TAU); ctx.fill();
     ctx.fillStyle = wc('#7BC96F'); ctx.beginPath(); ctx.arc(rb.cx, rb.cy, rb.r - half - 1, 0, TAU); ctx.fill();
     const fl = ['#FFD23F', '#F2545B', '#9B7BE0', '#FFFFFF'];
-    for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; ctx.fillStyle = fl[k % 4]; ctx.beginPath(); ctx.arc(rb.cx + Math.cos(a) * 22, rb.cy + Math.sin(a) * 22, 6, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, 9, 0, TAU); ctx.fill();
+    if (!winter) for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; ctx.fillStyle = fl[k % 4]; ctx.beginPath(); ctx.arc(rb.cx + Math.cos(a) * 22, rb.cy + Math.sin(a) * 22, 6, 0, TAU); ctx.fill(); }
+    if (!winter) { ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, 9, 0, TAU); ctx.fill(); }
   }
   // markings
   for (const e of vis) {
@@ -1485,7 +1515,7 @@ function nightSprite(name) {
   for (let k = 0; k < N; k++) {
     const i = 4 * k; if (!p[i + 3]) continue;
     if (label[k] && sizes[label[k]] < maxWin) { p[i] = 255; p[i + 1] = 214; p[i + 2] = 110; }
-    else if (name === 'xmas_tree' && Math.max(p[i], p[i + 1], p[i + 2]) > 190 && Math.max(p[i], p[i + 1], p[i + 2]) - Math.min(p[i], p[i + 1], p[i + 2]) > 70) { /* garland bulbs and the star keep shining */ }
+    else if ((name === 'xmas_tree' || name === 'xmas_small') && Math.max(p[i], p[i + 1], p[i + 2]) > 190 && Math.max(p[i], p[i + 1], p[i + 2]) - Math.min(p[i], p[i + 1], p[i + 2]) > 70) { /* garland bulbs and the star keep shining */ }
     else { p[i] = p[i] * 0.42 + 8; p[i + 1] = p[i + 1] * 0.45 + 10; p[i + 2] = p[i + 2] * 0.6 + 26; }
   }
   g.putImageData(d, 0, 0);
@@ -2047,7 +2077,7 @@ function startNav() {
   trip.s = 0; trip.v = 0; trip.idx = 0; trip.mi = 0; trip.said = {};
   navZoom = 1; navFreeUntil = 0;
   setSpecial();
-  say(kidName ? `${kidName}, поехали! ${trip.poi.phrase}!` : trip.poi.phrase + '! Поехали!', true);
+  say(kidName ? `${kidName}, поехали! ${trip.poi.phrase}!` : trip.poi.phrase + '! Поехали!', true, ['a01', clip(trip.poi.phrase) || 'g02']);
   requestWake();
   ui();
 }
@@ -2068,7 +2098,7 @@ function arrive() {
   mode = 'arrived';
   car.node = trip.poi.node;
   car.parked = trip.poi.lot ? { poi: trip.poi, spot: trip.poi.spot } : null;
-  say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true);
+  say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true, ['a02', clip(trip.poi.name) || (Math.random() < 0.5 ? 'g05' : 'g06')]);
   $('arTitle').textContent = kidName ? `Ура, ${kidName}!` : 'Вы прибыли!';
   const arPic = $('arPic'), arPlace = $('arPlace');
   arPlace.innerHTML = '';
@@ -2147,7 +2177,7 @@ function burnFuel(meters) {
   const before = fuel;
   fuel = Math.max(FUEL_MIN, fuel - meters / FUEL_METERS);
   const who = kidName ? kidName + ', ' : '';
-  if (before > 0.15 && fuel <= 0.15) say(cap(who + (isEV() ? 'батарея садится! Поехали на зарядку!' : 'бензин заканчивается! Поехали на заправку!')));
+  if (before > 0.15 && fuel <= 0.15) say(cap(who + (isEV() ? 'батарея садится! Поехали на зарядку!' : 'бензин заканчивается! Поехали на заправку!')), false, [isEV() ? 'h02' : 'f01']);
   if (performance.now() - fuelSaved > 3000) { fuelSaved = performance.now(); saveFuel(); }
 }
 function drawFuel(dt) {
@@ -2178,7 +2208,7 @@ function updateBreak(dt) {
     if (driveSec >= breakAt) {
       broken = true; saveBreak();
       playOnce('breakdown', 'snd/breakdown.mp3', 1);
-      say(kidName ? `Ой, ${kidName}! Машинка сломалась! Поехали в автосервис!` : 'Ой! Машинка сломалась! Поехали в автосервис!', true);
+      say(kidName ? `Ой, ${kidName}! Машинка сломалась! Поехали в автосервис!` : 'Ой! Машинка сломалась! Поехали в автосервис!', true, ['h08']);
     }
   }
   if (repairAnim) {
@@ -2228,16 +2258,16 @@ function updateTrip(dt) {
   while (trip.mi < trip.man.length && trip.man[trip.mi].s < trip.s - 8) {
     trip.mi++;
     const nd = (trip.mi < trip.man.length ? trip.man[trip.mi].s : trip.L) - trip.s;
-    if (nd > 1300) say(`Прямо ${sayDist(nd).replace('через ', '')}`);
+    if (nd > 1300) say(`Прямо ${sayDist(nd).replace('через ', '')}`, false, ['e01']);
   }
   const m = trip.man[trip.mi];
   const d = (m ? m.s : trip.L) - trip.s;
   const v = trip.v, far = Math.max(260, v * 7), near = Math.max(70, v * 2.4);
   const key = trip.mi;
   if (m && m.kind === 'ring') {
-    if (!trip.said['f' + key] && d < far && d > near * 1.5) { trip.said['f' + key] = 1; say(`${cap(sayDist(d))} ${m.say}`); }
-    if (!trip.said['n' + key] && d < near) { trip.said['n' + key] = 1; trip.said['f' + key] = 1; say(cap(m.say), true); }
-  } else if (!m && !trip.said.fin && d < far && d > 60) { trip.said.fin = 1; say(`${cap(sayDist(d))} вы на месте`); }
+    if (!trip.said['f' + key] && d < far && d > near * 1.5) { trip.said['f' + key] = 1; say(`${cap(sayDist(d))} ${m.say}`, false, m.exit <= 4 ? ['d0' + m.exit] : null); }
+    if (!trip.said['n' + key] && d < near) { trip.said['n' + key] = 1; trip.said['f' + key] = 1; say(cap(m.say), true, m.exit <= 4 ? ['d0' + (4 + m.exit)] : null); }
+  } else if (!m && !trip.said.fin && d < far && d > 60) { trip.said.fin = 1; say(`${cap(sayDist(d))} вы на месте`, false, ['e02']); }
 
   // banner and trip bar
   const kind = m ? m.kind : 'finish';
@@ -2365,7 +2395,7 @@ $('dayMode').onclick = () => { dayMode = { auto: 'day', day: 'night', night: 'au
 function showMuteToggle() { $('muteToggle').textContent = muted ? '🔇 Весь звук: выкл' : '🔊 Весь звук: вкл'; }
 $('muteToggle').onclick = () => { muted = !muted; try { localStorage.setItem('muted', muted ? '1' : '0'); } catch (e) { } if (muted) { speechSynthesis?.cancel(); engineStop(); sirenStop(); } showMuteToggle(); };
 function showVoiceToggle() { $('voiceToggle').textContent = voiceOn ? '🗣️ Голос навигатора: вкл' : '🤐 Голос навигатора: выкл'; }
-$('voiceToggle').onclick = () => { voiceOn = !voiceOn; try { localStorage.setItem('voiceOn', voiceOn ? '1' : '0'); } catch (e) { } if (!voiceOn) speechSynthesis?.cancel(); showVoiceToggle(); };
+$('voiceToggle').onclick = () => { voiceOn = !voiceOn; try { localStorage.setItem('voiceOn', voiceOn ? '1' : '0'); } catch (e) { } if (!voiceOn) { speechSynthesis?.cancel(); vQueue = []; try { vNow?.stop(); } catch (e) { } } showVoiceToggle(); };
 function testPhrase() { return kidName ? `Проверка голоса, ${kidName}` : 'Проверка голоса'; }
 function speakNow(text) {
   if (!('speechSynthesis' in window)) { diagNote('синтез речи недоступен'); return; }
@@ -2373,7 +2403,7 @@ function speakNow(text) {
   const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; if (ruVoice) u.voice = ruVoice;
   speechSynthesis.speak(u);
 }
-$('testVoice').onclick = () => speakNow(testPhrase());
+$('testVoice').onclick = async () => { if (!(await playClips(['a01'], true))) speakNow(testPhrase()); };
 $('refuel').onclick = () => { fuel = 1; saveFuel(); diagNote(isEV() ? 'батарея заряжена' : 'бак полный'); };
 $('forceUpdate').onclick = async () => {
   diagNote('обновляю...');
@@ -2622,6 +2652,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();

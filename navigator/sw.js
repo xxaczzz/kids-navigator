@@ -1,17 +1,20 @@
 // Bump VERSION after any change so phones pick up the new files.
-const VERSION = 'nav-v33';
-const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'img/kostya.jpg', 'snd/ignition.mp3', 'snd/engine.ogg', 'snd/engine.wav', 'snd/plane.ogg', 'snd/plane.wav', 'snd/siren.ogg', 'snd/siren.wav', 'snd/meow.mp3', 'snd/horn1.mp3', 'snd/horn2.mp3', 'snd/nitro.mp3'];
-const SPRITES = ['car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const VERSION = 'nav-v35';
+const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'img/kostya.jpg', 'snd/ignition.mp3', 'snd/engine.ogg', 'snd/engine.wav', 'snd/plane.ogg', 'snd/plane.wav', 'snd/siren.ogg', 'snd/siren.wav', 'snd/meow.mp3', 'snd/horn1.mp3', 'snd/horn2.mp3', 'snd/nitro.mp3', 'snd/bus.ogg', 'snd/bus.wav', 'snd/breakdown.mp3', 'snd/repair.mp3'];
+const SPRITES = ['xmas_small', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'home', 'kindergarten', 'shop', 'gas_station', 'fire_station', 'playground',
   'police', 'hospital', 'school', 'train_station', 'cinema', 'ice_cream', 'pizza', 'post_office', 'car_wash', 'stadium',
   'airport', 'amusement_park', 'grandma', 'zoo', 'lighthouse', 'orbi_city', 'beach', 'port', 'aquapark', 'bakery', 'library', 'circus', 'toy_shop', 'dino_museum', 'vet', 'farm', 'camp', 'picnic', 'castle', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', 'mcdonalds', 'marriott', 'europe_square', 'lake_resort', 'grand_mall', 'metro_city', 'person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'train_engine', 'train_car', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'car_police', 'car_cat', 'car_blue'].map(n => 'img/' + n + '.png');
+
+// recorded voice phrases (optional: a missing one falls back to the synthesiser)
+const VOICE = ["a01", "a02", "b01", "b02", "b03", "b04", "b05", "b06", "b07", "b08", "b09", "b10", "b11", "b12", "b13", "b14", "b15", "b16", "b17", "b18", "b19", "b20", "b21", "b22", "b23", "b24", "b25", "b26", "b27", "b28", "b29", "b30", "b31", "b32", "b33", "b34", "b35", "b36", "b37", "b38", "b39", "b40", "b41", "b42", "c01", "c02", "c03", "c04", "c05", "c06", "c07", "c08", "c09", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19", "c20", "c21", "c22", "c23", "c24", "c25", "c26", "c27", "c28", "c29", "c30", "c31", "c32", "c33", "c34", "c35", "c36", "c37", "c38", "c39", "c40", "c41", "c42", "c43", "c44", "d01", "d02", "d03", "d04", "d05", "d06", "d07", "d08", "e01", "e02", "f01", "f02", "f03", "g01", "g02", "g03", "g04", "g05", "g06", "h01", "h02", "h03", "h04", "h05", "h06", "h07", "h08", "h09", "h10"].map(c => 'snd/v/' + c + '.mp3');
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(async c => {
     // cache: 'reload' skips the browser HTTP cache, so a new version never picks up old files
     await c.addAll(CORE.map(u => new Request(u, { cache: 'reload' })));
     // sprites are optional: missing ones fall back to emoji
-    await Promise.allSettled(SPRITES.map(u => c.add(new Request(u, { cache: 'reload' }))));
+    await Promise.allSettled(SPRITES.concat(VOICE).map(u => c.add(new Request(u, { cache: 'reload' }))));
   }).then(() => self.skipWaiting()));
 });
 
