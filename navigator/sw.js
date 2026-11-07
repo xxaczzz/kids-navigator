@@ -1,5 +1,5 @@
 // Bump VERSION after any change so phones pick up the new files.
-const VERSION = 'nav-v36';
+const VERSION = 'nav-v37';
 const CORE = ['./', 'index.html', 'app.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'img/kostya.jpg', 'snd/ignition.mp3', 'snd/engine.ogg', 'snd/engine.wav', 'snd/plane.ogg', 'snd/plane.wav', 'snd/siren.ogg', 'snd/siren.wav', 'snd/meow.mp3', 'snd/horn1.mp3', 'snd/horn2.mp3', 'snd/nitro.mp3', 'snd/bus.ogg', 'snd/bus.wav', 'snd/breakdown.mp3', 'snd/repair.mp3'];
 const SPRITES = ['xmas_small', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'home', 'kindergarten', 'shop', 'gas_station', 'fire_station', 'playground',

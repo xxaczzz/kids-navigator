@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v36'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v37'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -1765,6 +1765,7 @@ function drawCar(t) {
     // top view car: just turn it with the road
     const hh = Math.max(18, 36 * cam.scale) * 384 / 257, wpx = hh * top.width / top.height; // same length for every car
     if (broken && !repairAnim) drawSmoke(t, sx, sy, h, hh);
+    const hazOn = hazard && Math.floor(performance.now() / 350) % 2 === 0;
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
     if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
@@ -1779,6 +1780,12 @@ function drawCar(t) {
         g.addColorStop(0, col); g.addColorStop(0.35, col); g.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.globalAlpha = 0.8; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x * wpx, -0.23 * hh, R, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
       }
+    }
+    if (hazOn) for (const [fx, fy] of [[-0.42, -0.44], [0.42, -0.44], [-0.42, 0.46], [0.42, 0.46]]) {
+      const x = fx * wpx, y = fy * hh, R = Math.max(wpx * 0.6, 12);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+      g.addColorStop(0, '#FFF3C4'); g.addColorStop(0.25, '#FFA41B'); g.addColorStop(1, 'rgba(255,140,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
     }
     ctx.restore();
     if (refuelAnim && isEV()) drawSparks(t, sx, sy, Math.max(wpx, hh));
@@ -2094,6 +2101,7 @@ function startNav() {
   trip.s = 0; trip.v = 0; trip.idx = 0; trip.mi = 0; trip.said = {};
   navZoom = 1; navFreeUntil = 0;
   setSpecial();
+  $('btnHazard').classList.toggle('on', hazard);
   say(kidName ? `${kidName}, поехали! ${trip.poi.phrase}!` : trip.poi.phrase + '! Поехали!', true, ['a01', clip(trip.poi.phrase) || 'g02']);
   requestWake();
   ui();
@@ -2433,19 +2441,27 @@ function showDiag() { $('diag').innerHTML = `Версия: <b>${APP_VERSION}</b>
 
 $('garageClose').onclick = () => $('garage').classList.add('hidden');
 $('pvGo').onclick = ignition;
-function clickSound() {
+function clickSound(vol = 0.9, freq = 2400) {
   if (muted) return;
   const a = audio(); if (!a) return;
   const n = Math.floor(a.sampleRate * 0.03), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 6);
   const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-  f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 1.2; g.gain.value = 0.9;
+  f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.2; g.gain.value = vol;
   src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start();
 }
+// hazard relay: tick when the lamps go on, tock when they go off (only while driving)
+let hazPhase = -1;
+function hazardTick() {
+  const ph = hazard ? Math.floor(performance.now() / 350) % 2 : -1;
+  if (ph !== hazPhase) { if (hazard && hazPhase !== -1 && mode === 'nav') clickSound(0.35, ph === 0 ? 2600 : 1700); hazPhase = ph; }
+}
+$('btnHazard').onclick = () => { clickSound(); hazard = !hazard; $('btnHazard').classList.toggle('on', hazard); };
 $('btnLights').onclick = () => { clickSound(); lightsOn = !lightsOn; $('btnLights').classList.toggle('on', lightsOn); };
 // ---------- special button: siren for police, meow for the cat, horn for the others ----------
 const SIREN_FILE = IOS ? 'snd/siren.wav' : 'snd/siren.ogg';
 const HORNS = { car_top: 'snd/horn1.mp3', car_blue: 'snd/horn2.mp3' };
+let hazard = false;
 let sirenOn = false, siren = null, meowUntil = 0, boostUntil = 0, boostReady = 0;
 const BOOST_MS = 5000, BOOST_CD = 10000;
 function setSpecial() {
@@ -2615,6 +2631,7 @@ function frame(now) {
   movePeople(dt);
   updateBus(dt);
   drawFuel(dt);
+  hazardTick();
   updateBreak(dt);
   updateCamera(dt);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2669,6 +2686,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();
