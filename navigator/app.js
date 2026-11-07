@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v32'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v33'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -309,6 +309,7 @@ const POI_DEFS = [
   ['shop', 'Магазин', 'shop', '🛒', 'Ah3,3', .5, -1, 140, 'Едем в магазин'],
   ['gas', 'Заправка', 'gas_station', '⛽', 'Ah5,2', .5, 1, 170, 'Едем на заправку'],
   ['gas2', 'Заправка', 'gas_station', '⛽', 'Bh6,3', .5, 1, 170, 'Едем на заправку'],
+  ['service', 'Автосервис', 'car_service', '🔧', 'Ah6,4', .5, 1, 170, 'Едем в автосервис'],
   ['chargeW', 'Зарядка', 'charger', '⚡', 'Ah0,1', .5, 1, 160, 'Едем на зарядку'],
   ['chargeE', 'Зарядка', 'charger', '⚡', 'Bv7,0', .5, 1, 160, 'Едем на зарядку'],
   ['fire', 'Пожарные', 'fire_station', '🚒', 'Av6,0', .5, -1, 160, 'Едем к пожарным'],
@@ -347,6 +348,10 @@ const POI_DEFS = [
   ['mcdonalds', 'Макдональдс', 'mcdonalds', '🍔', 'Av4,1', .5, 1, 150, 'Едем в Макдональдс'],
   ['resort', 'Курорт', 'lake_resort', '🏝️', 'lakeRd', .92, -1, 230, 'Едем на курорт'],
   ['castle', 'Замок', 'castle', '🏰', 'forest', .92, -1, 230, 'Едем в замок'],
+  ['bus1', 'Остановка', 'bus_stop', '🚏', 'Av1,3', .5, 1, 110, 'Едем на остановку'],
+  ['bus2', 'Остановка', 'bus_stop', '🚏', 'Bh1,1', .5, 1, 110, 'Едем на остановку'],
+  ['bus3', 'Остановка', 'bus_stop', '🚏', 'Bh4,4', .5, 1, 110, 'Едем на остановку'],
+  ['bus4', 'Остановка', 'bus_stop', '🚏', 'Ah3,5', .5, 1, 110, 'Едем на остановку'],
 ];
 const POIS = [];
 // hand-placed spots for big pictures that need the whole block: [x, y (base), width]
@@ -356,7 +361,7 @@ function placePois() {
     const eref = eref0.startsWith('blv@') ? blvEdgeAt(+eref0.slice(4)) : eref0;
     const eid = GE[eref];
     if (eid == null || edges[eid].dead) { console.warn('bad poi edge', key, eref); continue; }
-    if (!IMG[sprite]) continue;
+    if (!IMG[sprite] && !/^bus\d/.test(key)) continue;
     const e = edges[eid];
     const before = pointAlong(e.pts, Math.max(1, e.len * t - 10)), after = pointAlong(e.pts, e.len * t + 10);
     const { n, p } = splitEdge(eid, t);
@@ -370,7 +375,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -589,6 +594,12 @@ const overlaps = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a
 const GROUND_LOTS = [];
 // where the driveway is in each picture: right edge (fraction of width from centre), top and bottom (fraction of height)
 const LOT_DRIVE = { parking_lot_small: [0.5, -0.30, 0.38], parking_lot_medium: [0.495, -0.065, 0.127], parking_lot_big: [0.5, -0.146, 0.159] };
+// inside each picture: the aisle line (fraction of height from centre) and the free spots [x, y, faces up]
+const LOT_SPOTS = {
+  parking_lot_small: { aisle: 0.30, spots: [[0.104, -0.084, 1]] },
+  parking_lot_medium: { aisle: 0.019, spots: [[0.234, -0.234, 1], [-0.010, 0.268, 0]] },
+  parking_lot_big: { aisle: 0.001, spots: [[-0.039, -0.283, 1], [-0.205, 0.272, 0], [0.133, 0.272, 0]] },
+};
 function placeGroundLot(pk, placed) {
   const im = IMG[pk.sp]; if (!im) return false;
   const W = pk.w, H = W * im.height / im.width;
@@ -616,7 +627,11 @@ function placeGroundLot(pk, placed) {
       if (POIS.some(o => overlaps(f, footprint(o.x, o.y, o.w, o.sprite))) || placed.some(o => overlaps(f, o))) continue;
       placed.push(f);
       for (let k = decor.length - 1; k >= 0; k--) { const d = decor[k]; if (overlaps([c[0] - r * 0.85, c[1] - r * 0.85, c[0] + r * 0.85, c[1] + r * 0.85], footprint(d.x, d.y, d.w, d.sprite))) decor.splice(k, 1); }
-      GROUND_LOTS.push({ x: c[0], y: c[1], ang, W, H, sp: pk.sp, road: RT[e.type].color, D });
+      const lot = { x: c[0], y: c[1], ang, W, H, sp: pk.sp, road: RT[e.type].color, D };
+      GROUND_LOTS.push(lot);
+      // a destination: a graph node on the road right at the driveway
+      const tt = d0 / e.len, node = tt * e.len < 20 ? e.a : (1 - tt) * e.len < 20 ? e.b : splitEdge(rd.eid, tt).n;
+      POIS.push({ key: 'lot' + GROUND_LOTS.length, name: 'Парковка', sprite: 'parking_small', emoji: '🅿️', node, x: c[0], y: c[1], w: 0, lot, phrase: 'Едем на парковку' });
       // upright P sign on the curb next to the driveway
       const lx = 0.46 * W, ly = D[1] * H - 10;
       SIGNS.push({ t: 'park', x: c[0] + ux[0] * lx + uy[0] * ly, y: c[1] + ux[1] * lx + uy[1] * ly });
@@ -988,10 +1003,14 @@ function buildPath(route) {
     const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
     return { x: q.x - dy / l * lanes[i], y: q.y + dx / l * lanes[i], vmax: q.v };
   });
-  // arc length, heading
+  return profile(out);
+}
+// arc length, heading, speed limits and time to the end for a list of path points
+function profile(out) {
+  const N = out.length;
   let s = 0;
   out.forEach((q, i) => { if (i) s += Math.hypot(q.x - out[i - 1].x, q.y - out[i - 1].y); q.s = s; });
-  out.forEach((q, i) => { const a = out[Math.max(0, i - 2)], b = out[Math.min(N - 1, i + 2)]; q.h = Math.atan2(b.y - a.y, b.x - a.x); });
+  out.forEach((q, i) => { const a = out[Math.max(0, i - 2)], b = out[Math.min(N - 1, i + 2)]; q.h = Math.atan2(b.y - a.y, b.x - a.x) + (q.rev ? Math.PI : 0); });
   // speed limits from curvature, braking pass
   const ALAT = 55, DEC = 28;
   out.forEach((q, i) => {
@@ -1097,6 +1116,143 @@ function s2w(sx, sy) {
 
 // ---------- drawing ----------
 const GRASS = '#9ED47F';
+// ---------- winter ----------
+let winterMode = 'auto'; // auto | on | off
+try { winterMode = localStorage.getItem('winterMode') || 'auto'; } catch (e) { }
+let winter = false;
+function winterNow() {
+  if (winterMode !== 'auto') return winterMode === 'on';
+  const d = new Date(), m = d.getMonth(), day = d.getDate();
+  return m === 11 || (m === 0 && day <= 15); // 1 December - 15 January
+}
+const SNOWY = { '#9ED47F': '#EAF1F7', '#7FD08A': '#DCE7F0', '#86CC6A': '#E3ECF4', '#7BC96F': '#E6EEF5', '#E9D9A6': '#ECE8DE', '#E6C86A': '#E2EAF1', '#C9A86B': '#DDE5ED', '#D9C46A': '#E0E8EF' };
+const wc = c => winter ? SNOWY[c] || c : c;
+// snow caps: on each column of a sprite the top few pixels under the outline turn white
+const SNOWCAP = {};
+const NO_SNOW = /^(fir$|snowman$|xmas_tree$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
+function snowSprite(name) {
+  if (name in SNOWCAP) return SNOWCAP[name];
+  const im = IMG[name]; if (!im || NO_SNOW.test(name)) return (SNOWCAP[name] = null);
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+  const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, W0 = c.width, H0 = c.height;
+  const dark = i => p[i] + p[i + 1] + p[i + 2] < 210;
+  const base = /tree|bush|forest/.test(name) ? H0 * 0.17 : Math.max(8, Math.min(H0 * 0.09, 36));
+  for (let x = 0; x < W0; x++) {
+    let y = 0; while (y < H0 && p[4 * (y * W0 + x) + 3] < 110) y++;
+    if (y >= H0) continue;
+    const y1 = y + 12; while (y < y1 && y < H0 && dark(4 * (y * W0 + x))) y++;
+    const cap = Math.round(base + 2 * Math.sin(x * 0.21) + 1.5 * Math.sin(x * 0.07 + 1));
+    for (let k = 0; k < cap && y + k < H0; k++) {
+      const i = 4 * ((y + k) * W0 + x);
+      if (p[i + 3] < 110) break;
+      if (dark(i)) continue; // inner outlines stay
+      const edge = k >= cap - 2;
+      p[i] = edge ? 200 : 246; p[i + 1] = edge ? 218 : 250; p[i + 2] = edge ? 236 : 254;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  return (SNOWCAP[name] = c);
+}
+const baseSprite = name => (winter && snowSprite(name)) || IMG[name];
+// snowdrifts along the curbs, worked out once
+// winter only: every other tree turns into a snowy fir, a New Year tree by Europe Square, snowmen by the kids' places
+const WINTER_DECOR = [];
+function buildWinterDecor() {
+  decor.forEach((d, i) => { if (/^tree_/.test(d.sprite) && i % 2 === 0) d.fir = true; });
+  const taken = [];
+  // the New Year tree stands right on the fountain of Europe Square
+  const eu = POIS.find(p => p.key === 'europe');
+  if (eu && IMG.xmas_tree && IMG[eu.sprite]) {
+    const w = 125, th = w * IMG.xmas_tree.height / IMG.xmas_tree.width, eh = eu.w * IMG[eu.sprite].height / IMG[eu.sprite].width;
+    WINTER_DECOR.push({ x: eu.x, y: eu.y - 0.09 * eh - 0.18 * th + 12, w, sprite: 'xmas_tree', over: eu });
+  }
+  for (const [key, sp, w] of [['home', 'snowman', 55], ['kindergarten', 'snowman', 55], ['park', 'snowman', 55], ['school', 'snowman', 55], ['grandma', 'snowman', 55]]) {
+    const o = POIS.find(p => p.key === key); if (!o || !IMG[sp]) continue;
+    let ok = null;
+    for (let r = o.w * 0.55 + w * 0.5; r < 420 && !ok; r += 20) for (let k = 0; k < 16 && !ok; k++) {
+      const a = k / 16 * TAU + r * 0.01, q = [o.x + Math.cos(a) * r, o.y + Math.sin(a) * r * 0.8];
+      if (!spriteClear(q, w, sp) || inWater(q)) continue;
+      const f = footprint(q[0], q[1], w, sp);
+      if (POIS.some(p => p.w && overlaps(f, footprint(p.x, p.y, p.w, p.sprite))) || taken.some(t => overlaps(f, t))) continue;
+      if (decor.some(d => !/^(tree_|bush)/.test(d.sprite) && overlaps(f, footprint(d.x, d.y, d.w, d.sprite)))) continue;
+      ok = q;
+    }
+    if (!ok) continue;
+    const f = footprint(ok[0], ok[1], w, sp); taken.push(f);
+    // trees under it step aside in winter
+    decor.forEach(d => { if (/^(tree_|bush)/.test(d.sprite) && overlaps(f, footprint(d.x, d.y, d.w, d.sprite))) d.noWinter = true; });
+    WINTER_DECOR.push({ x: ok[0], y: ok[1], w, sprite: sp });
+  }
+}
+let DRIFTS = null;
+function buildDrifts() {
+  DRIFTS = [];
+  let seed = 7; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (const e of edges) {
+    if (e.dead || e.type === 'ring' || e.type === 'ringBig') continue;
+    const off = RT[e.type].cw / 2 + 5, pts = [];
+    let bb = [1e9, 1e9, -1e9, -1e9];
+    for (let d = 30; d < e.len - 30; d += 16) {
+      const a = pointAlong(e.pts, d), b = pointAlong(e.pts, Math.min(e.len, d + 4)), l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const n = [-(b[1] - a[1]) / l, (b[0] - a[0]) / l];
+      for (const sd of [1, -1]) {
+        const q = [a[0] + n[0] * off * sd, a[1] + n[1] * off * sd];
+        if (inWater(q)) continue;
+        const r = 6 + R() * 7; pts.push([q[0], q[1], r]);
+        bb = [Math.min(bb[0], q[0]), Math.min(bb[1], q[1]), Math.max(bb[2], q[0]), Math.max(bb[3], q[1])];
+      }
+    }
+    if (pts.length) DRIFTS.push({ bb, pts });
+  }
+}
+function drawDrifts(view) {
+  if (!winter || cam.scale < 0.18) return;
+  if (!DRIFTS) buildDrifts();
+  const vis = DRIFTS.filter(D => !(D.bb[2] < view[0] - 20 || D.bb[0] > view[2] + 20 || D.bb[3] < view[1] - 20 || D.bb[1] > view[3] + 20));
+  // a soft blue shadow under each drift, then the white snow
+  for (const [col, dy, dr] of [['#C6D6E6', 3, 1.5], ['#FFFFFF', 0, 0]]) {
+    ctx.fillStyle = col; ctx.beginPath();
+    for (const D of vis) for (const [x, y, r] of D.pts) { ctx.moveTo(x + r + dr, y + dy); ctx.arc(x, y + dy, r + dr, 0, TAU); }
+    ctx.fill();
+  }
+}
+// ---------- weather: rain, or snow in winter ----------
+let weatherMode = 'auto'; // auto | clear | wet
+try { weatherMode = localStorage.getItem('weatherMode') || 'auto'; } catch (e) { }
+let wetK = 0, wetAuto = false, wetTimer = 240 + Math.random() * 300;
+const DROPS = [];
+function drawWeather(dt) {
+  if (weatherMode === 'auto') {
+    wetTimer -= dt;
+    if (wetTimer <= 0) { wetAuto = !wetAuto; wetTimer = wetAuto ? 300 + Math.random() * 120 : 600 + Math.random() * 600; }
+  }
+  const want = weatherMode === 'wet' || (weatherMode === 'auto' && wetAuto) ? 1 : 0;
+  wetK += (want - wetK) * Math.min(1, dt * 0.6);
+  if (wetK < 0.01) return;
+  const snow = winter, N = Math.round((snow ? 150 : 170) * wetK);
+  while (DROPS.length < 170) DROPS.push({ x: Math.random(), y: Math.random(), z: Math.random() });
+  if (!snow) { ctx.fillStyle = `rgba(70,80,96,${0.22 * wetK})`; ctx.fillRect(0, 0, W, H); }
+  const t = performance.now() / 1000;
+  ctx.save();
+  if (snow) ctx.fillStyle = 'rgba(255,255,255,.92)';
+  else { ctx.strokeStyle = 'rgba(215,228,245,.6)'; ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.beginPath(); }
+  for (let i = 0; i < N; i++) {
+    const q = DROPS[i];
+    if (snow) {
+      q.y += dt * (0.05 + q.z * 0.07); q.x += dt * 0.012 * Math.sin(t * 0.8 + i);
+      if (q.y > 1.02) { q.y = -0.02; q.x = Math.random(); }
+      ctx.beginPath(); ctx.arc(((q.x % 1) + 1) % 1 * W, q.y * H, 1.4 + q.z * 2.4, 0, TAU); ctx.fill();
+    } else {
+      q.y += dt * (1.1 + q.z * 0.8); q.x -= dt * 0.12;
+      if (q.y > 1.05) { q.y = -0.05; q.x = Math.random() * 1.2; }
+      const x = q.x * W, y = q.y * H, L = 12 + q.z * 12;
+      ctx.moveTo(x, y); ctx.lineTo(x - L * 0.25, y + L);
+    }
+  }
+  if (!snow) ctx.stroke();
+  ctx.restore();
+}
 function strokePts(pts) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); }
 function edgeVisible(e, view) {
   if (!e.bb) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of e.pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); } e.bb = [x0 - 100, y0 - 100, x1 + 100, y1 + 100]; }
@@ -1133,8 +1289,8 @@ function drawGround(view) {
   // order: river banks, beach, river water, sea, waves. The sea covers the river mouth, no edges in the water
   const coast = (dy) => { ctx.beginPath(); ctx.moveTo(CITY.minX - 2000, coastY(CITY.minX - 2000) + dy); for (let x = CITY.minX - 2000; x <= CITY.maxX + 2000; x += 60) ctx.lineTo(x, coastY(x) + dy); ctx.lineTo(CITY.maxX + 2000, CITY.maxY + 3000); ctx.lineTo(CITY.minX - 2000, CITY.maxY + 3000); ctx.fill(); };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.strokeStyle = '#7FD08A'; ctx.lineWidth = RIVER_W + 30; strokePts(RIVER);
-  ctx.fillStyle = '#E9D9A6'; coast(-70);
+  ctx.strokeStyle = wc('#7FD08A'); ctx.lineWidth = RIVER_W + 30; strokePts(RIVER);
+  ctx.fillStyle = wc('#E9D9A6'); coast(-70);
   ctx.strokeStyle = '#5BB8F5'; ctx.lineWidth = RIVER_W; strokePts(RIVER);
   ctx.fillStyle = '#5BB8F5'; coast(0);
   ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
@@ -1148,13 +1304,13 @@ function drawGround(view) {
   // lakes
   // all shores first, then all water, so lakes that touch merge into one
   const lakePath = (L, k) => { const pts = lakeShape(L, k); ctx.beginPath(); pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath(); };
-  ctx.fillStyle = '#E9D9A6'; ctx.strokeStyle = '#E9D9A6'; ctx.lineWidth = 36;
+  ctx.fillStyle = wc('#E9D9A6'); ctx.strokeStyle = wc('#E9D9A6'); ctx.lineWidth = 36;
   LAKES.forEach((L, k) => { lakePath(L, k); ctx.fill(); ctx.stroke(); });
   ctx.fillStyle = '#5BB8F5';
   LAKES.forEach((L, k) => { lakePath(L, k); ctx.fill(); });
   // park
   const pk = ZONES.park;
-  ctx.fillStyle = '#86CC6A'; roundRect(pk[0], pk[1], pk[2] - pk[0], pk[3] - pk[1], 30); ctx.fill();
+  ctx.fillStyle = wc('#86CC6A'); roundRect(pk[0], pk[1], pk[2] - pk[0], pk[3] - pk[1], 30); ctx.fill();
   ctx.strokeStyle = '#E8DDB5'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(pk[0] + 20, pk[3] - 40); ctx.quadraticCurveTo((pk[0] + pk[2]) / 2, (pk[1] + pk[3]) / 2, pk[2] - 30, pk[1] + 40); ctx.stroke();
   // airport
   const ap = ZONES.airport;
@@ -1165,7 +1321,7 @@ function drawGround(view) {
   for (let k = 0; k < 6; k++) { ctx.fillRect(ap[0] + 70, ry + 12 + k * 15, 26, 8); ctx.fillRect(ap[2] - 96, ry + 12 + k * 15, 26, 8); }
   // fields near grandma
   for (const [x0, y0, x1, y1, c] of FIELDS) {
-    ctx.fillStyle = c; roundRect(x0, y0, x1 - x0, y1 - y0, 20); ctx.fill();
+    ctx.fillStyle = wc(c); roundRect(x0, y0, x1 - x0, y1 - y0, 20); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,.08)'; ctx.lineWidth = 8;
     for (let y = y0 + 30; y < y1 - 10; y += 34) { ctx.beginPath(); ctx.moveTo(x0 + 20, y); ctx.lineTo(x1 - 20, y); ctx.stroke(); }
   }
@@ -1194,7 +1350,7 @@ function drawRoads(view) {
   for (const rb of roundabouts) {
     const half = RT[rb.type].w / 2;
     ctx.fillStyle = RT[rb.type].casing; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, rb.r - half + 7, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#7BC96F'; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, rb.r - half - 1, 0, TAU); ctx.fill();
+    ctx.fillStyle = wc('#7BC96F'); ctx.beginPath(); ctx.arc(rb.cx, rb.cy, rb.r - half - 1, 0, TAU); ctx.fill();
     const fl = ['#FFD23F', '#F2545B', '#9B7BE0', '#FFFFFF'];
     for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; ctx.fillStyle = fl[k % 4]; ctx.beginPath(); ctx.arc(rb.cx + Math.cos(a) * 22, rb.cy + Math.sin(a) * 22, 6, 0, TAU); ctx.fill(); }
     ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.arc(rb.cx, rb.cy, 9, 0, TAU); ctx.fill();
@@ -1210,7 +1366,7 @@ function drawRoads(view) {
     if (t.mark === 'dash') {
       ctx.strokeStyle = e.type === 'country' ? '#F5F0DC' : '#FFFFFF'; ctx.lineWidth = 4; ctx.setLineDash([26, 22]); ctx.lineCap = 'butt'; strokePts(pts); ctx.setLineDash([]); ctx.lineCap = 'round';
     } else if (t.mark === 'median') {
-      ctx.strokeStyle = '#7BC96F'; ctx.lineWidth = 16; strokePts(pts);
+      ctx.strokeStyle = wc('#7BC96F'); ctx.lineWidth = 16; strokePts(pts);
       ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.setLineDash([22, 22]); ctx.lineCap = 'butt';
       for (const s of [-1, 1]) strokePts(offsetPts(pts, s * 26));
       ctx.setLineDash([]); ctx.lineCap = 'round';
@@ -1301,8 +1457,9 @@ function nightTarget() {
 // a night version of every sprite: walls darker, windows (light blue / glass) glowing warm yellow
 const NIGHT = {};
 function nightSprite(name) {
-  if (name in NIGHT) return NIGHT[name];
-  const im = IMG[name]; if (!im) return (NIGHT[name] = null);
+  const key = winter ? name + '|w' : name;
+  if (key in NIGHT) return NIGHT[key];
+  const im = baseSprite(name); if (!im) return (NIGHT[key] = null);
   const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
   const g = c.getContext('2d'); g.drawImage(im, 0, 0);
   const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
@@ -1328,10 +1485,11 @@ function nightSprite(name) {
   for (let k = 0; k < N; k++) {
     const i = 4 * k; if (!p[i + 3]) continue;
     if (label[k] && sizes[label[k]] < maxWin) { p[i] = 255; p[i + 1] = 214; p[i + 2] = 110; }
+    else if (name === 'xmas_tree' && Math.max(p[i], p[i + 1], p[i + 2]) > 190 && Math.max(p[i], p[i + 1], p[i + 2]) - Math.min(p[i], p[i + 1], p[i + 2]) > 70) { /* garland bulbs and the star keep shining */ }
     else { p[i] = p[i] * 0.42 + 8; p[i + 1] = p[i + 1] * 0.45 + 10; p[i + 2] = p[i + 2] * 0.6 + 26; }
   }
   g.putImageData(d, 0, 0);
-  return (NIGHT[name] = c);
+  return (NIGHT[key] = c);
 }
 function drawNightOverlay() {
   if (night < 0.01) return;
@@ -1503,7 +1661,7 @@ function drawSprite(name, sx, sy, wpx, emoji) {
   const im = IMG[name];
   if (im) {
     const h = wpx * im.height / im.width;
-    ctx.drawImage(im, sx - wpx / 2, sy - h * 0.82, wpx, h);
+    ctx.drawImage(baseSprite(name), sx - wpx / 2, sy - h * 0.82, wpx, h);
     if (night > 0.01) { const n = nightSprite(name); if (n) { ctx.globalAlpha = night; ctx.drawImage(n, sx - wpx / 2, sy - h * 0.82, wpx, h); ctx.globalAlpha = 1; } }
     return [sx - wpx / 2, sy - h * 0.82, wpx, h];
   }
@@ -1520,13 +1678,20 @@ function drawBillboards() {
   const M = 260;
   for (const d of decor) {
     d.rect = null;
+    if (winter && d.noWinter) continue;
     const [sx, sy] = w2s(d.x, d.y);
     if (sx < -M || sx > W + M || sy < -M || sy > H + M) continue;
     const wpx = d.w * cam.scale; if (wpx < 4) continue;
-    items.push({ sy, sx, wpx, name: d.sprite, dec: d });
+    items.push({ sy, sx, wpx, name: winter && d.fir && IMG.fir ? 'fir' : d.sprite, dec: d });
+  }
+  if (winter) for (const d of WINTER_DECOR) {
+    const [sx, sy] = w2s(d.x, d.y);
+    if (sx < -M || sx > W + M || sy < -M || sy > H + M) continue;
+    items.push({ sy: d.over ? w2s(d.over.x, d.over.y)[1] + 0.5 : sy, drawSy: sy, sx, wpx: d.w * cam.scale, name: d.sprite });
   }
   for (const p of POIS) {
     const [sx, sy] = w2s(p.x, p.y);
+    if (p.lot) { const r = p.lot.W * 0.45 * cam.scale; p.rect = sx > -M && sx < W + M && sy > -M && sy < H + M ? [sx - r, sy - r, 2 * r, 2 * r] : null; continue; }
     if (sx < -M || sx > W + M || sy < -M || sy > H + M) continue;
     items.push({ sy, sx, wpx: p.w * cam.scale, name: p.sprite, poi: p });
   }
@@ -1536,7 +1701,7 @@ function drawBillboards() {
   for (const it of items) {
     if (it.person) { drawPerson(it); continue; }
     if (it.sign) { drawSign(it.sign, it.sx, it.sy, cam.scale, performance.now() / 1000); continue; }
-    const r = drawSprite(it.name, it.sx, it.sy, it.wpx, it.emoji);
+    const r = drawSprite(it.name, it.sx, it.drawSy ?? it.sy, it.wpx, it.emoji);
     if (it.poi) it.poi.rect = r;
     if (it.dec) it.dec.rect = r;
   }
@@ -1547,6 +1712,7 @@ function drawBillboards() {
     const p = it.poi;
     const isTarget = trip && trip.poi === p;
     if (mode === 'nav' && !isTarget) continue;
+    if (/^bus\d/.test(p.key) && !isTarget) continue;
     if (cam.scale < 0.2 && !isTarget) continue;
     const fs = 13;
     ctx.font = `700 ${fs}px system-ui, sans-serif`;
@@ -1568,6 +1734,7 @@ function drawCar(t) {
   if (top) {
     // top view car: just turn it with the road
     const hh = Math.max(18, 36 * cam.scale) * 384 / 257, wpx = hh * top.width / top.height; // same length for every car
+    if (broken && !repairAnim) drawSmoke(t, sx, sy, h, hh);
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
     if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
@@ -1585,6 +1752,7 @@ function drawCar(t) {
     }
     ctx.restore();
     if (refuelAnim && isEV()) drawSparks(t, sx, sy, Math.max(wpx, hh));
+    if (repairAnim) drawSparks(t, sx, sy, Math.max(wpx, hh), '🔧');
     if (performance.now() < meowUntil) drawBubble(sx, sy - Math.max(wpx, hh) * 0.75, 'Мяу!');
     return;
   }
@@ -1619,13 +1787,13 @@ function drawBoost(t, wpx, hh) {
     }
   }
 }
-function drawSparks(t, x, y, r) {
+function drawSparks(t, x, y, r, sym = '⚡') {
   // a small lightning bolt runs around the car while it charges
   ctx.save(); ctx.translate(x, y);
   for (let i = 0; i < 2; i++) {
     const a = t * 4 + i * Math.PI;
     ctx.save(); ctx.translate(Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.75);
-    ctx.font = `${Math.round(r * 0.5)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', 0, 0);
+    ctx.font = `${Math.round(r * 0.5)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sym, 0, 0);
     ctx.restore();
   }
   ctx.restore();
@@ -1728,6 +1896,73 @@ async function planeHum(g) {
     if (g <= 0.01 && !plane) { const h = hum; hum = null; h.gain.gain.setTargetAtTime(0, actx.currentTime, 0.2); setTimeout(() => { try { h.src.stop(); } catch (e) { } }, 1200); }
   }
 }
+// ---------- city bus: a loop through the stops, 20 seconds at each stop ----------
+let BUS = null;
+function buildBus() {
+  const stops = POIS.filter(p => /^bus\d/.test(p.key));
+  if (stops.length < 2) return;
+  let pts = [], stopS = [], h = 0;
+  for (let i = 0; i < stops.length; i++) {
+    const a = stops[i], b = stops[(i + 1) % stops.length];
+    const route = findRoute(a.node, b.node, h); if (!route) return;
+    const leg = buildPath(route);
+    h = leg[leg.length - 1].h;
+    const add = leg.map(q => ({ x: q.x, y: q.y, vmax: q.vmax * 0.8 }));
+    if (pts.length) add.shift();
+    pts = pts.concat(add);
+    pts[pts.length - 1].vmax = 0; // stop here
+    stopS.push(pts.length - 1);
+  }
+  const path = profile(pts);
+  BUS = { path, stops: stopS.map(i => path[i].s), L: path[path.length - 1].s, s: 0, v: 0, idx: 0, wait: 20, next: 0, x: path[0].x, y: path[0].y, h: path[0].h };
+}
+function updateBus(dt) {
+  const B = BUS; if (!B) return;
+  if (B.wait > 0) { B.wait -= dt; B.v = 0; }
+  else {
+    const P = B.path, lim = P[B.idx].lim, ahead = P[Math.min(P.length - 1, B.idx + 6)].lim;
+    const vt = Math.min(lim, ahead);
+    B.v = B.v < vt ? Math.min(vt, B.v + 12 * dt) : Math.max(vt, B.v - 30 * dt);
+    B.v = Math.max(B.v, 3);
+    const target = B.stops[B.next];
+    B.s = Math.min(B.s + B.v * dt, target);
+    if (B.s >= target - 0.5) { B.wait = 20; B.v = 0; B.next = (B.next + 1) % B.stops.length; if (target >= B.L - 0.5) { B.s = 0; B.idx = 0; } }
+  }
+  const P = B.path;
+  while (B.idx < P.length - 2 && P[B.idx + 1].s <= B.s) B.idx++;
+  const a = P[B.idx], b = P[B.idx + 1], t = clamp((B.s - a.s) / ((b.s - a.s) || 1), 0, 1);
+  B.x = lerp(a.x, b.x, t); B.y = lerp(a.y, b.y, t); B.h = a.h + angDiff(b.h, a.h) * t;
+  // engine sound only near the bus
+  const d = Math.hypot(B.x - car.x, B.y - car.y);
+  busHum(B.wait > 0 ? 0.5 * clamp(1 - d / 500, 0, 1) : clamp(1 - d / 600, 0, 1));
+}
+function drawBus() {
+  const B = BUS; if (!B) return;
+  const [sx, sy] = w2s(B.x, B.y); if (sx < -200 || sx > W + 200 || sy < -200 || sy > H + 200) return;
+  const len = Math.max(18, 36 * cam.scale) * 384 / 257 * 2.3, im = IMG.bus;
+  const wid = im ? len * im.width / im.height : len * 0.38;
+  // see-through when it drives over Kostya's car, so they never look like they crash
+  const near = Math.hypot(B.x - car.x, B.y - car.y) < 110;
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(B.h + cam.rot + Math.PI / 2); ctx.globalAlpha = near ? 0.45 : 1;
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; roundRect(-wid / 2 + 2, -len / 2 + 4, wid, len, wid * 0.25); ctx.fill();
+  if (im) ctx.drawImage(im, -wid / 2, -len / 2, wid, len);
+  else { ctx.fillStyle = '#FF8A1F'; ctx.strokeStyle = '#1D2A44'; ctx.lineWidth = 2; roundRect(-wid / 2, -len / 2, wid, len, wid * 0.25); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#9BD4FF'; roundRect(-wid * 0.38, -len * 0.47, wid * 0.76, len * 0.12, 4); ctx.fill(); }
+  ctx.restore();
+}
+let bhum = null;
+async function busHum(g) {
+  if (!actx) return; // no sound before the first tap
+  if (muted || !engineOn) g = 0;
+  if (!bhum && g > 0.01) {
+    bhum = { starting: true };
+    const b = await sound('bus', IOS ? 'snd/bus.wav' : 'snd/bus.ogg'), a = audio();
+    if (!b || !a) { setTimeout(() => { bhum = null; }, 5000); return; }
+    const src = a.createBufferSource(), gain = a.createGain(); src.buffer = b; src.loop = true;
+    gain.gain.value = 0; src.connect(gain).connect(a.destination); src.start();
+    bhum = { src, gain, g: 0 };
+  }
+  if (bhum && bhum.gain && Math.abs(bhum.g - g) > 0.02) { bhum.g = g; bhum.gain.gain.setTargetAtTime(g * 0.5, actx.currentTime, 0.3); }
+}
 function drawConfetti(dt) {
   if (!confetti.length) return;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -1764,11 +1999,35 @@ function updateCamera(dt) {
 }
 
 // ---------- trip ----------
+// local picture point of a lot -> world
+function lotPt(L, fx, fy) { const c = Math.cos(L.ang), sn = Math.sin(L.ang), x = fx * L.W, y = fy * L.H; return [L.x + c * x - sn * y, L.y + sn * x + c * y]; }
+const roundCorner = (a, p, b, r) => { const d1 = dist(a, p), d2 = dist(p, b), c1 = Math.min(r, d1 * .45), c2 = Math.min(r, d2 * .45); const p1 = [p[0] + (a[0] - p[0]) * c1 / d1, p[1] + (a[1] - p[1]) * c1 / d1], p2 = [p[0] + (b[0] - p[0]) * c2 / d2, p[1] + (b[1] - p[1]) * c2 / d2]; const o = []; for (let k = 0; k <= 8; k++) { const t = k / 8, u = 1 - t; o.push([u * u * p1[0] + 2 * u * t * p[0] + t * t * p2[0], u * u * p1[1] + 2 * u * t * p[1] + t * t * p2[1]]); } return o; };
+function samplePts(key, extra) { const pts = []; for (let i = 1; i < key.length; i++) { const a = key[i - 1], b = key[i], n = Math.max(1, Math.ceil(dist(a, b) / 3)); for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push({ x: lerp(a[0], b[0], k / n), y: lerp(a[1], b[1], k / n), vmax: 14, ...extra }); } return pts; }
+// a slow drive from the road into a free spot
+function lotIn(L, spot, from) {
+  const S = LOT_SPOTS[L.sp], mouth = lotPt(L, 0.56, S.aisle), turn = lotPt(L, spot[0], S.aisle), park = lotPt(L, spot[0], spot[1]);
+  return samplePts([from, ...roundCorner(from, mouth, turn, 22), ...roundCorner(mouth, turn, park, Math.abs(spot[1] - S.aisle) * L.H * 0.6), park]);
+}
+// back out of the spot turning so the car ends up facing the exit, then drive forward onto the road
+function lotOut(L, spot, to) {
+  const S = LOT_SPOTS[L.sp], mouth = lotPt(L, 0.56, S.aisle), turn = lotPt(L, spot[0], S.aisle), park = lotPt(L, spot[0], spot[1]);
+  const back = lotPt(L, spot[0] - 38 / L.W, S.aisle);
+  const rev = samplePts([park, ...roundCorner(park, turn, back, Math.abs(spot[1] - S.aisle) * L.H * 0.8), back], { rev: true });
+  const fwd = samplePts([back, ...roundCorner(back, mouth, to, 22), to]);
+  return rev.concat(fwd.slice(1));
+}
 function startPreview(poi) {
-  if (poi.node === car.node) return;
+  if (poi.node === car.node && !car.parked) return;
+  if (poi === car.parked?.poi) return;
   const route = findRoute(car.node, poi.node, car.h);
   if (!route) return;
-  const path = buildPath(route);
+  let path = buildPath(route);
+  if (car.parked || poi.lot) {
+    let pts = path.map(q => ({ x: q.x, y: q.y, vmax: q.vmax }));
+    if (car.parked) pts = lotOut(car.parked.poi.lot, car.parked.spot, [pts[0].x, pts[0].y]).concat(pts.slice(1));
+    if (poi.lot) { const S = LOT_SPOTS[poi.lot.sp], spot = S.spots[Math.floor(Math.random() * S.spots.length)]; poi.spot = spot; const end = pts[pts.length - 1]; pts = pts.concat(lotIn(poi.lot, spot, [end.x, end.y]).slice(1)); }
+    path = profile(pts);
+  }
   const man = maneuvers(route);
   let from = 0;
   for (const m of man) { const i = locate(path, P(m.node), from); m.i = i; m.s = path[i].s; from = i; }
@@ -1796,6 +2055,7 @@ function stopNav() {
   if (mode === 'nav' && trip) {
     const r = nearestRoad([car.x, car.y]);
     if (r) car.node = nodeAtRoad(r); // the car stays here; the next trip starts from this spot
+    if (trip.s > 30) car.parked = null;
   }
   mode = 'idle'; trip = null;
   engineStop(); sirenStop(); saveFuel();
@@ -1807,6 +2067,7 @@ function stopNav() {
 function arrive() {
   mode = 'arrived';
   car.node = trip.poi.node;
+  car.parked = trip.poi.lot ? { poi: trip.poi, spot: trip.poi.spot } : null;
   say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true);
   $('arTitle').textContent = kidName ? `Ура, ${kidName}!` : 'Вы прибыли!';
   const arPic = $('arPic'), arPlace = $('arPlace');
@@ -1819,6 +2080,7 @@ function arrive() {
   $('arName').textContent = trip.poi.name;
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
   engineStop(); sirenStop(); saveFuel();
+  if (trip.poi.key === 'service' && broken) startRepair();
   if (isGas(trip.poi) && fuel < 0.99) { say(isEV() ? 'Заряжаемся!' : 'Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
   releaseWake();
@@ -1902,6 +2164,44 @@ function drawFuel(dt) {
   $('fuelWarn').classList.toggle('ev', isEV());
   el.classList.toggle('hidden', mode === 'preview');
 }
+// ---------- breakdowns: after 12-18 minutes of driving the car breaks, drives slower and smokes until it is repaired ----------
+let broken = false, driveSec = 0, breakAt = 0, repairAnim = null;
+const newBreakAt = () => (12 + Math.random() * 6) * 60;
+try { broken = localStorage.getItem('broken') === '1'; driveSec = +localStorage.getItem('driveSec') || 0; breakAt = +localStorage.getItem('breakAt') || 0; } catch (e) { }
+if (!breakAt) breakAt = newBreakAt();
+const saveBreak = () => { try { localStorage.setItem('broken', broken ? '1' : '0'); localStorage.setItem('driveSec', Math.round(driveSec)); localStorage.setItem('breakAt', Math.round(breakAt)); } catch (e) { } };
+let breakSaved = 0;
+function updateBreak(dt) {
+  if (mode === 'nav' && !broken && POIS.some(p => p.key === 'service')) {
+    driveSec += dt;
+    if (driveSec - breakSaved > 10) { breakSaved = driveSec; saveBreak(); }
+    if (driveSec >= breakAt) {
+      broken = true; saveBreak();
+      playOnce('breakdown', 'snd/breakdown.mp3', 1);
+      say(kidName ? `Ой, ${kidName}! Машинка сломалась! Поехали в автосервис!` : 'Ой! Машинка сломалась! Поехали в автосервис!', true);
+    }
+  }
+  if (repairAnim) {
+    repairAnim.t += dt;
+    if (repairAnim.t > 5) { repairAnim = null; broken = false; driveSec = 0; breakSaved = 0; breakAt = newBreakAt(); saveBreak(); say('Машинка как новая! Можно ехать!'); }
+  }
+  $('fixWarn').classList.toggle('hidden', !(broken && mode === 'idle'));
+}
+function startRepair() {
+  say('Чиним машинку!');
+  setTimeout(() => { repairAnim = { t: 0 }; playOnce('repair', 'snd/repair.mp3', 1); }, 2000);
+}
+// grey smoke puffs behind a broken car
+function drawSmoke(t, sx, sy, h, hh) {
+  ctx.save();
+  for (let i = 0; i < 4; i++) {
+    const k = (t * 0.9 + i / 4) % 1, back = hh * (0.55 + k * 0.9);
+    const x = sx - Math.cos(h) * back + Math.sin(t * 3 + i) * 4, y = sy - Math.sin(h) * back - k * 18;
+    ctx.globalAlpha = 0.75 * (1 - k * 0.8); ctx.fillStyle = '#4A505C'; ctx.strokeStyle = '#F2F4F7'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, hh * (0.16 + k * 0.3), 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
 function nearestGas() {
   let best = null;
   for (const p of POIS) if (isGas(p)) { const d = Math.hypot(p.x - car.x, p.y - car.y); if (!best || d < best.d) best = { p, d }; }
@@ -1911,7 +2211,7 @@ function updateTrip(dt) {
   if (mode !== 'nav' || !trip) return;
   const P = trip.path;
   const lim = P[trip.idx].lim, ahead = P[Math.min(P.length - 1, trip.idx + 6)].lim;
-  let vt = Math.min(lim, ahead) * (sirenOn ? 1.2 : 1);
+  let vt = Math.min(lim, ahead) * (sirenOn ? 1.2 : 1) * (broken ? 0.6 : 1);
   const boosting = performance.now() < boostUntil;
   if (boosting) { let cl = 999; for (let i = trip.idx; i < Math.min(P.length, trip.idx + 14); i++) cl = Math.min(cl, P[i].cl); vt = Math.max(vt, Math.min(vt * 2, cl)); }
   if (trip.v < vt) trip.v = Math.min(vt, trip.v + (boosting ? 70 : 22) * dt); else trip.v = Math.max(vt, trip.v - 40 * dt);
@@ -1961,14 +2261,23 @@ function setPic(el, poi) {
   if (IMG[poi.sprite]) { const i = document.createElement('img'); i.src = IMG[poi.sprite].src; el.appendChild(i); }
   else el.textContent = poi.emoji;
 }
+function nearestLot() {
+  let best = null, bd = 1e9;
+  for (const p of POIS) { if (!p.lot || p === car.parked?.poi) continue; const d = Math.hypot(p.x - car.x, p.y - car.y); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
 function buildDests() {
   const box = $('dests'); box.innerHTML = '';
+  let lotBtn = false;
   for (const p of POIS) {
-    const b = document.createElement('button'); b.className = 'dest'; b.dataset.key = p.key;
+    if (p.lot && lotBtn) continue;
+    if (/^bus\d/.test(p.key)) continue;
+    const b = document.createElement('button'); b.className = 'dest'; b.dataset.key = p.lot ? 'parking' : p.key;
     const pic = document.createElement('div'); pic.className = 'pic'; setPic(pic, p);
     const l = document.createElement('div'); l.className = 'lbl'; l.textContent = p.name;
     b.append(pic, l);
-    b.onclick = () => startPreview(p);
+    b.onclick = () => startPreview(p.lot ? nearestLot() : p);
+    if (p.lot) lotBtn = true;
     box.appendChild(b);
   }
 }
@@ -1985,7 +2294,7 @@ function ui() {
   $('btnCar').classList.toggle('hidden', mode !== 'idle');
   if (mode !== 'idle') { $('garage').classList.add('hidden'); $('settings').classList.add('hidden'); }
   $('btnSettings').classList.toggle('hidden', mode !== 'idle');
-  for (const b of document.querySelectorAll('#dests .dest')) b.classList.toggle('here', POIS.find(p => p.key === b.dataset.key).node === car.node);
+  for (const b of document.querySelectorAll('#dests .dest')) b.classList.toggle('here', b.dataset.key === 'parking' ? !!car.parked : POIS.find(p => p.key === b.dataset.key)?.node === car.node && !car.parked);
 }
 async function requestWake() { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) { /* not available */ } }
 function releaseWake() { try { wakeLock?.release(); } catch (e) { } wakeLock = null; }
@@ -2044,6 +2353,12 @@ function openSettings() {
   b.addEventListener('contextmenu', e => e.preventDefault());
 })();
 $('settingsClose').onclick = () => $('settings').classList.add('hidden');
+const WINTER_NAMES = { auto: '❄️ Зима: сама (1 дек - 15 янв)', on: '❄️ Зима: включена', off: '🌳 Зима: выключена' };
+function showWinter() { $('winterMode').textContent = WINTER_NAMES[winterMode]; }
+$('winterMode').onclick = () => { winterMode = { auto: 'on', on: 'off', off: 'auto' }[winterMode]; try { localStorage.setItem('winterMode', winterMode); } catch (e) { } showWinter(); showWeather(); };
+function showWeather() { $('weatherMode').textContent = { auto: '🌦️ Погода: сама меняется', clear: '☀️ Погода: ясно', wet: winterNow() ? '🌨️ Погода: снегопад' : '🌧️ Погода: дождь' }[weatherMode]; }
+$('weatherMode').onclick = () => { weatherMode = { auto: 'clear', clear: 'wet', wet: 'auto' }[weatherMode]; try { localStorage.setItem('weatherMode', weatherMode); } catch (e) { } showWeather(); };
+showWinter(); showWeather();
 const DAY_NAMES = { auto: '🌗 Время суток: как на часах', day: '☀️ Время суток: всегда день', night: '🌙 Время суток: всегда ночь' };
 function showDayMode() { $('dayMode').textContent = DAY_NAMES[dayMode]; }
 $('dayMode').onclick = () => { dayMode = { auto: 'day', day: 'night', night: 'auto' }[dayMode]; try { localStorage.setItem('dayMode', dayMode); } catch (e) { } showDayMode(); };
@@ -2137,6 +2452,7 @@ $('btnSpecial').onclick = () => {
     meowUntil = performance.now() + 1800; playOnce('meow', 'snd/meow.mp3', 1);
   } else playOnce('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top, 0.8);
 };
+$('fixWarn').onclick = () => { if (mode !== 'idle') return; const g = POIS.find(p => p.key === 'service'); if (g) startPreview(g); };
 $('fuelWarn').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('fuel').onclick = () => { if (mode !== 'idle') return; const g = nearestGas(); if (g) startPreview(g); };
 $('engineToggle').onclick = () => {
@@ -2250,15 +2566,19 @@ function frame(now) {
   const t = now / 1000;
   updateTrip(dt);
   movePeople(dt);
+  updateBus(dt);
   drawFuel(dt);
+  updateBreak(dt);
   updateCamera(dt);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.fillStyle = GRASS; ctx.fillRect(0, 0, W, H);
+  winter = winterNow();
+  ctx.fillStyle = wc(GRASS); ctx.fillRect(0, 0, W, H);
   ctx.translate(W / 2, H * cam.fy); ctx.rotate(cam.rot); ctx.scale(cam.scale, cam.scale); ctx.translate(-cam.x, -cam.y);
   const c0 = s2w(0, 0), c1 = s2w(W, 0), c2 = s2w(0, H), c3 = s2w(W, H);
   const view = [Math.min(c0[0], c1[0], c2[0], c3[0]), Math.min(c0[1], c1[1], c2[1], c3[1]), Math.max(c0[0], c1[0], c2[0], c3[0]), Math.max(c0[1], c1[1], c2[1], c3[1])];
   drawGround(view);
   drawRoads(view);
+  drawDrifts(view);
   drawGroundLots();
   drawTrain(dt);
   drawBoats(dt);
@@ -2270,8 +2590,10 @@ function frame(now) {
   drawBillboards();
   drawPin(t);
   drawHeadlights();
+  drawBus();
   drawCar(t);
   drawPlane(dt);
+  drawWeather(dt);
   drawConfetti(dt);
   requestAnimationFrame(frame);
 }
@@ -2290,6 +2612,8 @@ async function boot() {
   placeParkings();
   buildLamps();
   buildPeople();
+  buildBus();
+  buildWinterDecor();
   night = nightTarget();
   const home = POIS.find(p => p.key === 'home');
   car.node = home.node; car.x = nodes[home.node].x; car.y = nodes[home.node].y + RT.street.lane; car.h = Math.PI;
@@ -2298,6 +2622,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();
