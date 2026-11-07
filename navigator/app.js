@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v35'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v36'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -1944,6 +1944,23 @@ function buildBus() {
     stopS.push(pts.length - 1);
   }
   const path = profile(pts);
+  // each stop stands on the right side of the road in the bus's direction, right at the curb, and nothing hides it
+  stopS.forEach((pi, i) => {
+    const st = stops[(i + 1) % stops.length]; // leg i ends at the next stop
+    const q = path[pi], h = q.h, n = nodes[st.node];
+    const r = nearestRoad([n.x, n.y], 80); if (!r) return;
+    const half = RT[edges[r.eid].type].cw / 2, nrm = [-Math.sin(h), Math.cos(h)];
+    let pos = null;
+    for (let off = half + 14; off < half + 70 && !pos; off += 4) {
+      const c = [n.x + nrm[0] * off, n.y + nrm[1] * off];
+      if (spriteClear(c, st.w, st.sprite) && !inWater(c)) pos = c;
+    }
+    if (!pos) pos = [n.x + nrm[0] * (half + 40), n.y + nrm[1] * (half + 40)];
+    st.x = pos[0]; st.y = pos[1];
+    const f = footprint(st.x, st.y, st.w, st.sprite), pad = 6;
+    const fp = [f[0] - pad, f[1] - pad, f[2] + pad, f[3] + pad];
+    for (let k = decor.length - 1; k >= 0; k--) { const d = decor[k]; if (overlaps(fp, footprint(d.x, d.y, d.w, d.sprite))) decor.splice(k, 1); }
+  });
   BUS = { path, stops: stopS.map(i => path[i].s), L: path[path.length - 1].s, s: 0, v: 0, idx: 0, wait: 20, next: 0, x: path[0].x, y: path[0].y, h: path[0].h };
 }
 function updateBus(dt) {
