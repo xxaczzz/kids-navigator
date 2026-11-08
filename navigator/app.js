@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v45'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v46'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -1845,7 +1845,7 @@ function drawCar(t) {
     if (broken && !repairAnim) drawSmoke(t, sx, sy, h, hh);
     const blinkOn = Math.floor(performance.now() / 350) % 2 === 0, hazOn = hazard && blinkOn, turnOn = !hazard && turnSig && blinkOn;
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
-    if (carSkin === 'car_robot' && IMG.robot_leg) { drawRobot(top, hh); ctx.restore(); return; }
+    if (carSkin === 'car_robot' && IMG.robot_leg) { drawRobot(top, hh); robotLamps(hh); ctx.restore(); return; }
     if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
     ctx.drawImage(top, -wpx / 2, -hh / 2, wpx, hh);
@@ -1917,6 +1917,20 @@ function drawRobot(body, hh) {
       g.addColorStop(0, 'rgba(220,255,255,.95)'); g.addColorStop(1, 'rgba(80,220,255,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, bw * 0.22, 0, TAU); ctx.fill();
     }
+  }
+}
+// hazard and turn lamps for the robot: orange lights on the four corners of its round body, same beat as the car
+function robotLamps(hh) {
+  const blinkOn = Math.floor(performance.now() / 350) % 2 === 0;
+  if (!blinkOn || (!hazard && !turnSig)) return;
+  const bw = hh * 1.2, bh = bw * IMG.car_robot.height / IMG.car_robot.width;
+  const corners = [[-0.36, -0.36], [0.36, -0.36], [-0.36, 0.36], [0.36, 0.36]];
+  const on = hazard ? corners : corners.filter(([x]) => Math.sign(x) === turnSig);
+  for (const [fx, fy] of on) {
+    const x = fx * bw, y = fy * bh, R = Math.max(bw * 0.32, 12);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+    g.addColorStop(0, '#FFF3C4'); g.addColorStop(0.25, '#FFA41B'); g.addColorStop(1, 'rgba(255,140,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fill();
   }
 }
 function drawBoost(t, wpx, hh) {
@@ -2132,7 +2146,7 @@ function startCaravan(way) {
 const TRUCK_BULBS = [[0.4954,0.0102],[0.5897,0.0125],[0.3891,0.0129],[0.6756,0.0193],[0.313,0.0198],[0.2566,0.0317],[0.7357,0.0317],[0.2206,0.0482],[0.7746,0.048],[0.2054,0.0672],[0.7912,0.0671],[0.4978,0.0733],[0.3974,0.0745],[0.593,0.0744],[0.6871,0.0783],[0.31,0.0784],[0.2217,0.0866],[0.7748,0.087],[0.192,0.1104],[0.8034,0.1108],[0.4964,0.1351],[0.3928,0.1358],[0.5969,0.1358],[0.2717,0.1411],[0.7161,0.1406],[0.1969,0.1552],[0.7954,0.1555],[0.1784,0.1741],[0.814,0.1739],[0.171,0.1943],[0.8238,0.194],[0.1677,0.2167],[0.825,0.2167],[0.168,0.2394],[0.8266,0.2395],[0.1771,0.2623],[0.8147,0.2628],[0.2156,0.2797],[0.7635,0.2804],[0.298,0.2833],[0.3971,0.2836],[0.4962,0.2836],[0.5838,0.2836],[0.6769,0.2832],[0.2292,0.322],[0.4112,0.3221],[0.3235,0.3221],[0.4995,0.3223],[0.5966,0.3221],[0.6893,0.3222],[0.7834,0.322],[0.1436,0.3242],[0.8595,0.3245],[0.103,0.3378],[0.8936,0.3378],[0.0994,0.3612],[0.8976,0.3611],[0.0985,0.386],[0.8988,0.3861],[0.0992,0.4113],[0.8989,0.4114],[0.0989,0.439],[0.8984,0.4393],[0.099,0.4662],[0.8998,0.4665],[0.0988,0.4932],[0.8998,0.4932],[0.0989,0.5183],[0.8998,0.5189],[0.0983,0.5451],[0.9002,0.5446],[0.0982,0.5705],[0.9001,0.5715],[0.0983,0.5966],[0.9003,0.5968],[0.0987,0.6213],[0.8997,0.6219],[0.0987,0.647],[0.9,0.6474],[0.099,0.6721],[0.9005,0.6724],[0.0991,0.698],[0.9004,0.6984],[0.0984,0.7229],[0.8998,0.7227],[0.0982,0.7491],[0.8999,0.7493],[0.0985,0.7749],[0.9018,0.7758],[0.0985,0.8007],[0.9014,0.801],[0.0986,0.8256],[0.9009,0.8258],[0.0977,0.8513],[0.9015,0.851],[0.0981,0.8772],[0.902,0.8781],[0.0986,0.9038],[0.9014,0.9041],[0.0983,0.9297],[0.9014,0.9294],[0.0987,0.9531],[0.9016,0.9532],[0.1042,0.9751],[0.8948,0.9752],[0.1801,0.9865],[0.2886,0.9866],[0.391,0.9867],[0.4979,0.9865],[0.6056,0.9866],[0.7092,0.9866],[0.8159,0.9866]];
 function truckLights() { return TRUCK_BULBS.map(([x, y], k) => [x, y, k % 4]); }
 function updateCaravan(dt) {
-  if (!newYearNow()) { if (caravan) { caravan = null; caravanSong(0); } return; }
+  if (!newYearNow() || !winter) { if (caravan) { caravan = null; caravanSong(0); } return; }
   if (!caravan) { caravanTimer -= dt; if (caravanTimer <= 0) { caravanTimer = 600; startCaravan(); } return; }
   const C = caravan; C.s += C.v * dt;
   if (C.s - (C.n - 1) * C.gap > C.L) { caravan = null; caravanSong(0); return; }
@@ -2238,7 +2252,7 @@ function startSanta() {
   playSong('santa');
 }
 function drawSanta(dt) {
-  if (!newYearNow()) { if (santa) { santa = null; stopSong(); } return; }
+  if (!newYearNow() || !winter) { if (santa) { santa = null; stopSong(); } return; }
   if (!santa) { santaTimer -= dt; if (santaTimer <= 0 && mode !== 'preview') { santaTimer = 540 + Math.random() * 120; startSanta(); } return; }
   const S = santa, im = IMG.santa;
   S.x += S.d[0] * S.v * dt; S.y += S.d[1] * S.v * dt; S.left -= S.v * dt;
