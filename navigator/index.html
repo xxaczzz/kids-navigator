@@ -91,22 +91,27 @@
   #btnLights { width: 52px; height: 52px; border-radius: 16px; background: #3A4152; font-size: 24px; flex: none; filter: grayscale(1) brightness(.7); }
   #btnLights.on { background: #FFD23F; filter: none; box-shadow: 0 0 16px rgba(255,210,63,.7); }
   #dash { min-height: 118px; }
+  #blinkers { position: absolute; left: calc(50% - 30px); top: -26px; transform: translateX(-50%); display: flex; gap: 60px; }
+  .turn { width: 66px; height: 40px; border-radius: 12px; background: #1E222C; box-shadow: 0 -2px 10px rgba(0,0,0,.35), inset 0 0 0 2px #3A4152; display: grid; place-items: center; }
+  .turn svg { width: 42px; height: 28px; fill: #2F4A24; }
+  .turn.right svg { transform: scaleX(-1); }
+  .turn:active { transform: scale(.94); }
+  .turn.lit svg { fill: #C6FF4A; filter: drop-shadow(0 0 6px #B8F04A) drop-shadow(0 0 12px rgba(184,240,74,.7)); }
   #dash .rcol { display: grid; grid-template-columns: 52px 52px; grid-template-rows: 52px 52px; gap: 8px; flex: none; align-items: center; }
   #dash .rcol #btnLights { grid-column: 1; grid-row: 2; }
   #btnHazard { grid-column: 2; grid-row: 1 / span 2; width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FF6B6B, #D7262E 60%, #A8141B); box-shadow: 0 4px 0 #7A0E13, 0 6px 14px rgba(0,0,0,.4); display: grid; place-items: center; }
   #btnHazard svg { width: 32px; height: 32px; }
   #btnHazard:active { transform: translateY(3px); box-shadow: 0 1px 0 #7A0E13, 0 3px 8px rgba(0,0,0,.4); }
-  #btnHazard.on { animation: hazard .7s steps(1) infinite; }
-  @keyframes hazard { 0% { box-shadow: 0 4px 0 #7A0E13, 0 0 0 4px #FFA41B, 0 0 22px 8px rgba(255,164,27,.75); } 50% { box-shadow: 0 4px 0 #7A0E13, 0 6px 14px rgba(0,0,0,.4); } }
+  #btnHazard.lit { box-shadow: 0 4px 0 #7A0E13, 0 0 0 4px #FFA41B, 0 0 22px 8px rgba(255,164,27,.75); }
   #dash .rcol #btnLights, #btnSpecial { width: 52px; height: 52px; }
   #btnSpecial { border-radius: 14px; background: #3A4152; font-size: 24px; }
   #btnSpecial:active { transform: scale(.92); }
   #btnSpecial.on { background: #2F6BFF; box-shadow: 0 0 14px rgba(47,107,255,.8), 0 0 0 3px #FF3B3B inset; animation: siren .5s steps(2) infinite; }
   @keyframes siren { 50% { box-shadow: 0 0 14px rgba(255,59,59,.8), 0 0 0 3px #2F6BFF inset; background: #FF3B3B; } }
   body.nav #speed, body.nav #fuel { display: none !important; }
-  body.nav #btnStop { bottom: calc(env(safe-area-inset-bottom) + 100px); }
-  body.nav #btnMute { bottom: calc(env(safe-area-inset-bottom) + 100px); }
-  body.nav #btnCenter { bottom: calc(env(safe-area-inset-bottom) + 166px); }
+  body.nav #btnStop { bottom: calc(env(safe-area-inset-bottom) + 148px); }
+  body.nav #btnMute { bottom: calc(env(safe-area-inset-bottom) + 148px); }
+  body.nav #btnCenter { bottom: calc(env(safe-area-inset-bottom) + 214px); }
   /* trip bar (old) */
   #tripbar {
     position: fixed; left: 0; right: 0; bottom: 0;
@@ -237,6 +242,7 @@
 </div>
 
 <div id="dash" class="hidden">
+  <div id="blinkers"><button id="btnTurnL" class="turn" aria-label="Левый поворотник"><svg viewBox="0 0 48 32"><path d="M3 16 L19 3 L19 10 L45 10 L45 22 L19 22 L19 29 Z"/></svg></button><button id="btnTurnR" class="turn right" aria-label="Правый поворотник"><svg viewBox="0 0 48 32"><path d="M3 16 L19 3 L19 10 L45 10 L45 22 L19 22 L19 29 Z"/></svg></button></div>
   <canvas id="gauge" width="200" height="120" aria-label="Спидометр"></canvas>
   <div class="mid"><div id="tTime"></div><div id="tInfo"></div></div>
   <canvas id="fgauge" width="120" height="120" aria-label="Бензин"></canvas>

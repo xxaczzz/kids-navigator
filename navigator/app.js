@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v37'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v39'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -315,7 +315,7 @@ const POI_DEFS = [
   ['fire', 'Пожарные', 'fire_station', '🚒', 'Av6,0', .5, -1, 160, 'Едем к пожарным'],
   ['park', 'Парк', 'playground', '🛝', 'Ah5,0', .45, 1, 170, 'Едем в парк'],
   ['police', 'Полиция', 'police', '🚓', 'Av4,3', .5, 1, 160, 'Едем в полицию'],
-  ['carwash', 'Мойка', 'car_wash', '🧽', 'Av8,3', .5, 1, 150, 'Едем на мойку'],
+  ['carwash', 'Мойка', 'car_wash', '🧽', 'Av8,3', .5, 1, 175, 'Едем на мойку'],
   ['hospital', 'Больница', 'hospital', '🏥', 'Bv2,2', .5, -1, 190, 'Едем в больницу'],
   ['train', 'Вокзал', 'train_station', '🚂', 'trainRd', .85, 1, 210, 'Едем на вокзал'],
   ['cinema', 'Кино', 'cinema', '🎬', 'Bh1,3', .5, 1, 160, 'Едем в кино'],
@@ -329,13 +329,14 @@ const POI_DEFS = [
   ['zoo', 'Зоопарк', 'zoo', '🦒', 'zoo', .85, 1, 210, 'Едем в зоопарк'],
   ['lighthouse', 'Маяк', 'lighthouse', '🗼', 'cape', .92, 1, 130, 'Едем к маяку'],
   ['orbi', 'Орби Сити', 'orbi_city', '🏙️', 'blv@3000', .5, -1, 340, 'Едем в Орби Сити'],
+  ['pineapples', 'Мои ананасы', 'pineapples', '🍍', 'blv@2350', .5, -1, 200, 'Едем к ананасам'],
   ['beach', 'Пляж', 'beach', '🏖️', 'blv@5400', .5, 1, 170, 'Едем на пляж'],
   ['port', 'Пристань', 'port', '⛵', 'blv@6600', .5, 1, 170, 'Едем на пристань'],
   ['aquapark', 'Аквапарк', 'aquapark', '💦', 'blv@10300', .5, -1, 240, 'Едем в аквапарк'],
   ['bakery', 'Пекарня', 'bakery', '🥖', 'Ah2,1', .5, 1, 130, 'Едем в пекарню'],
   ['library', 'Библиотека', 'library', '📚', 'Av3,3', .5, 1, 160, 'Едем в библиотеку'],
-  ['circus', 'Цирк', 'circus', '🎪', 'Ah7,1', .5, 1, 170, 'Едем в цирк'],
-  ['toys', 'Игрушки', 'toy_shop', '🧸', 'Bh3,1', .5, 1, 130, 'Едем за игрушками'],
+  ['circus', 'Цирк', 'circus', '🎪', 'Ah7,1', .5, 1, 150, 'Едем в цирк'],
+  ['toys', 'Лошадина', 'unicorn_shop', '🦄', 'Bh3,1', .5, -1, 190, 'Едем в Лошадину'],
   ['dino', 'Динозавры', 'dino_museum', '🦖', 'Bv5,3', .5, 1, 190, 'Едем к динозаврам'],
   ['vet', 'Ветклиника', 'vet', '🐾', 'subB', .5, 1, 130, 'Едем в ветклинику'],
   ['farm', 'Ферма', 'farm', '🐄', 'farmRd', .9, 1, 320, 'Едем на ферму'],
@@ -375,7 +376,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'pineapples', 'unicorn_shop', 'parking_tower', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -1045,7 +1046,7 @@ const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform 
 let voiceOn = true;
 try { voiceOn = localStorage.getItem('voiceOn') !== '0'; } catch (e) { }
 // recorded voice: one file per phrase, snd/v/<code>.mp3 (the list lives in the Map-car project, voice-phrases.md)
-const VOICE_TEXT = {"a01": "Костя, поехали!", "a02": "Ура, Костя, мы приехали!", "b01": "Едем домой", "b02": "Едем в садик", "b03": "Едем в школу", "b04": "Едем в магазин", "b05": "Едем на заправку", "b06": "Едем к пожарным", "b07": "Едем в парк", "b08": "Едем в полицию", "b09": "Едем на мойку", "b10": "Едем в больницу", "b11": "Едем на вокзал", "b12": "Едем в кино", "b13": "Едем на почту", "b14": "Едем на стадион", "b15": "Едем за мороженым", "b16": "Едем в пиццерию", "b17": "Едем в аэропорт", "b18": "Едем на аттракционы", "b19": "Едем к бабушке", "b20": "Едем в зоопарк", "b21": "Едем к маяку", "b22": "Едем в Орби Сити", "b23": "Едем на пляж", "b24": "Едем на пристань", "b25": "Едем в аквапарк", "b26": "Едем в пекарню", "b27": "Едем в библиотеку", "b28": "Едем в цирк", "b29": "Едем за игрушками", "b30": "Едем к динозаврам", "b31": "Едем в ветклинику", "b32": "Едем на ферму", "b33": "Едем в лагерь", "b34": "Едем на пикник", "b35": "Едем в Марриотт", "b36": "Едем на площадь Европы", "b37": "Едем в Гранд Молл", "b38": "Едем в Метро Сити", "b39": "Едем в Макдональдс", "b40": "Едем на курорт", "b41": "Едем в замок", "b42": "Едем в гости", "c01": "Дом", "c02": "Садик", "c03": "Школа", "c04": "Магазин", "c05": "Заправка", "c06": "Пожарные", "c07": "Парк", "c08": "Полиция", "c09": "Мойка", "c10": "Больница", "c11": "Вокзал", "c12": "Кино", "c13": "Почта", "c14": "Стадион", "c15": "Мороженое", "c16": "Пицца", "c17": "Аэропорт", "c18": "Аттракционы", "c19": "Бабушка", "c20": "Зоопарк", "c21": "Маяк", "c22": "Орби Сити", "c23": "Пляж", "c24": "Пристань", "c25": "Аквапарк", "c26": "Пекарня", "c27": "Библиотека", "c28": "Цирк", "c29": "Игрушки", "c30": "Динозавры", "c31": "Ветклиника", "c32": "Ферма", "c33": "Лагерь", "c34": "Пикник", "c35": "Марриотт", "c36": "Площадь Европы", "c37": "Гранд Молл", "c38": "Метро Сити", "c39": "Макдональдс", "c40": "Курорт", "c41": "Замок", "c42": "Домик", "c43": "Многоэтажка", "c44": "Офис", "d01": "Скоро кольцо, первый съезд", "d02": "Скоро кольцо, второй съезд", "d03": "Скоро кольцо, третий съезд", "d04": "Скоро кольцо, четвертый съезд", "d05": "На кольце первый съезд", "d06": "На кольце второй съезд", "d07": "На кольце третий съезд", "d08": "На кольце четвертый съезд", "e01": "Едем прямо, долго-долго", "e02": "Скоро приедем!", "f01": "Костя, бензин заканчивается! Поехали на заправку!", "f02": "Заправляемся!", "f03": "Бак полный! Можно ехать!", "g01": "Поехали!", "g02": "Едем в новое место!", "g03": "Посмотрим, что там!", "g04": "Приехали!", "g05": "Вот мы и на месте!", "g06": "Какое интересное место!", "h01": "Внимание, полиция едет!", "h02": "Костя, батарея садится! Поехали на зарядку!", "h03": "Заряжаемся!", "h04": "Батарея заряжена!", "h05": "Едем на зарядку", "h06": "Едем на парковку", "h07": "Едем в автосервис", "h08": "Ой, Костя! Машинка сломалась! Поехали в автосервис!", "h09": "Чиним машинку!", "h10": "Машинка как новая! Можно ехать!"};
+const VOICE_TEXT = {"a01": "Костя, поехали!", "a02": "Ура, Костя, мы приехали!", "b01": "Едем домой", "b02": "Едем в садик", "b03": "Едем в школу", "b04": "Едем в магазин", "b05": "Едем на заправку", "b06": "Едем к пожарным", "b07": "Едем в парк", "b08": "Едем в полицию", "b09": "Едем на мойку", "b10": "Едем в больницу", "b11": "Едем на вокзал", "b12": "Едем в кино", "b13": "Едем на почту", "b14": "Едем на стадион", "b15": "Едем за мороженым", "b16": "Едем в пиццерию", "b17": "Едем в аэропорт", "b18": "Едем на аттракционы", "b19": "Едем к бабушке", "b20": "Едем в зоопарк", "b21": "Едем к маяку", "b22": "Едем в Орби Сити", "b23": "Едем на пляж", "b24": "Едем на пристань", "b25": "Едем в аквапарк", "b26": "Едем в пекарню", "b27": "Едем в библиотеку", "b28": "Едем в цирк", "b29": "Едем за игрушками", "b30": "Едем к динозаврам", "b31": "Едем в ветклинику", "b32": "Едем на ферму", "b33": "Едем в лагерь", "b34": "Едем на пикник", "b35": "Едем в Марриотт", "b36": "Едем на площадь Европы", "b37": "Едем в Гранд Молл", "b38": "Едем в Метро Сити", "b39": "Едем в Макдональдс", "b40": "Едем на курорт", "b41": "Едем в замок", "b42": "Едем в гости", "c01": "Дом", "c02": "Садик", "c03": "Школа", "c04": "Магазин", "c05": "Заправка", "c06": "Пожарные", "c07": "Парк", "c08": "Полиция", "c09": "Мойка", "c10": "Больница", "c11": "Вокзал", "c12": "Кино", "c13": "Почта", "c14": "Стадион", "c15": "Мороженое", "c16": "Пицца", "c17": "Аэропорт", "c18": "Аттракционы", "c19": "Бабушка", "c20": "Зоопарк", "c21": "Маяк", "c22": "Орби Сити", "c23": "Пляж", "c24": "Пристань", "c25": "Аквапарк", "c26": "Пекарня", "c27": "Библиотека", "c28": "Цирк", "c29": "Игрушки", "c30": "Динозавры", "c31": "Ветклиника", "c32": "Ферма", "c33": "Лагерь", "c34": "Пикник", "c35": "Марриотт", "c36": "Площадь Европы", "c37": "Гранд Молл", "c38": "Метро Сити", "c39": "Макдональдс", "c40": "Курорт", "c41": "Замок", "c42": "Домик", "c43": "Многоэтажка", "c44": "Офис", "d01": "Скоро кольцо, первый съезд", "d02": "Скоро кольцо, второй съезд", "d03": "Скоро кольцо, третий съезд", "d04": "Скоро кольцо, четвертый съезд", "d05": "На кольце первый съезд", "d06": "На кольце второй съезд", "d07": "На кольце третий съезд", "d08": "На кольце четвертый съезд", "e01": "Едем прямо, долго-долго", "e02": "Скоро приедем!", "f01": "Костя, бензин заканчивается! Поехали на заправку!", "f02": "Заправляемся!", "f03": "Бак полный! Можно ехать!", "g01": "Поехали!", "g02": "Едем в новое место!", "g03": "Посмотрим, что там!", "g04": "Приехали!", "g05": "Вот мы и на месте!", "g06": "Какое интересное место!", "h01": "Внимание, полиция едет!", "h02": "Костя, батарея садится! Поехали на зарядку!", "h03": "Заряжаемся!", "h04": "Батарея заряжена!", "h05": "Едем на зарядку", "h06": "Едем на парковку", "h07": "Едем в автосервис", "h08": "Ой, Костя! Машинка сломалась! Поехали в автосервис!", "h09": "Чиним машинку!", "h10": "Машинка как новая! Можно ехать!", "h11": "Едем к ананасам", "h12": "Едем в Лошадину", "h13": "Едем на высокую парковку", "h14": "Высокая парковка", "k01": "Лошадина"};
 const vkey = t => String(t).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const VOICE_BY_TEXT = {};
 for (const [c, t] of Object.entries(VOICE_TEXT)) VOICE_BY_TEXT[vkey(t)] = c;
@@ -1183,6 +1184,23 @@ const baseSprite = name => (winter && snowSprite(name)) || IMG[name];
 // snowdrifts along the curbs, worked out once
 // winter only: every other tree turns into a snowy fir, a New Year tree by Europe Square, snowmen by the kids' places
 const WINTER_DECOR = [];
+function placeTower() {
+  if (!IMG.parking_tower) return;
+  const w = 210;
+  for (const x0 of [6000, 5600, 6400, 5200, 6800, 4800, 7200]) {
+    const hgt = w * IMG.parking_tower.height / IMG.parking_tower.width, y0 = hwY(x0), off = RT.highway.cw / 2 + hgt * 0.2 + 12, c = [x0, y0 - off];
+    if (!spriteClear(c, w, 'parking_tower') || inWater(c)) continue;
+    const f = footprint(c[0], c[1], w, 'parking_tower');
+    if (POIS.some(p => p.w && overlaps(f, footprint(p.x, p.y, p.w, p.sprite)))) continue;
+    for (let k = decor.length - 1; k >= 0; k--) { const d = decor[k]; if (overlaps(f, footprint(d.x, d.y, d.w, d.sprite))) decor.splice(k, 1); }
+    // a destination: a node on the highway right in front of it
+    const r = nearestRoad([x0, y0], 60); if (!r) continue;
+    const tt = clamp(r.t, 0.05, 0.95);
+    const node = splitEdge(r.eid, tt).n;
+    POIS.push({ key: 'tower', name: 'Высокая парковка', sprite: 'parking_tower', emoji: '🅿️', node, x: c[0], y: c[1], w, phrase: 'Едем на высокую парковку' });
+    return c;
+  }
+}
 function buildWinterDecor() {
   decor.forEach((d, i) => { if (/^tree_/.test(d.sprite) && i % 2 === 0) d.fir = true; });
   const taken = [];
@@ -1765,7 +1783,7 @@ function drawCar(t) {
     // top view car: just turn it with the road
     const hh = Math.max(18, 36 * cam.scale) * 384 / 257, wpx = hh * top.width / top.height; // same length for every car
     if (broken && !repairAnim) drawSmoke(t, sx, sy, h, hh);
-    const hazOn = hazard && Math.floor(performance.now() / 350) % 2 === 0;
+    const blinkOn = Math.floor(performance.now() / 350) % 2 === 0, hazOn = hazard && blinkOn, turnOn = !hazard && turnSig && blinkOn;
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
     if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
@@ -1781,7 +1799,8 @@ function drawCar(t) {
         ctx.globalAlpha = 0.8; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x * wpx, -0.23 * hh, R, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
       }
     }
-    if (hazOn) for (const [fx, fy] of [[-0.42, -0.44], [0.42, -0.44], [-0.42, 0.46], [0.42, 0.46]]) {
+    const lamps = hazOn ? [[-0.42, -0.44], [0.42, -0.44], [-0.42, 0.46], [0.42, 0.46]] : turnOn ? [[0.42 * turnSig, -0.44], [0.42 * turnSig, 0.46]] : [];
+    for (const [fx, fy] of lamps) {
       const x = fx * wpx, y = fy * hh, R = Math.max(wpx * 0.6, 12);
       const g = ctx.createRadialGradient(x, y, 0, x, y, R);
       g.addColorStop(0, '#FFF3C4'); g.addColorStop(0.25, '#FFA41B'); g.addColorStop(1, 'rgba(255,140,0,0)');
@@ -2071,6 +2090,7 @@ function lotOut(L, spot, to) {
   return rev.concat(fwd.slice(1));
 }
 function startPreview(poi) {
+  stopSong();
   if (poi.node === car.node && !car.parked) return;
   if (poi === car.parked?.poi) return;
   const route = findRoute(car.node, poi.node, car.h);
@@ -2119,11 +2139,21 @@ function stopNav() {
   tgt.x = car.x; tgt.y = car.y; tgt.rot = 0; tgt.scale = baseScale() * userZoom; tgt.fy = 0.5;
   ui();
 }
+// a song plays once on arrival; it stops as soon as the next trip is planned
+let songSrc = null;
+async function playSong(name) {
+  stopSong();
+  if (muted || !voiceOn) return;
+  const a = audio(), b = await sound(name, 'snd/' + name + '.mp3'); if (!a || !b) return;
+  const src = a.createBufferSource(), g = a.createGain(); g.gain.value = 1.1; src.buffer = b; src.connect(g).connect(a.destination); src.start(); songSrc = src;
+}
+function stopSong() { try { songSrc?.stop(); } catch (e) { } songSrc = null; }
 function arrive() {
   mode = 'arrived';
   car.node = trip.poi.node;
   car.parked = trip.poi.lot ? { poi: trip.poi, spot: trip.poi.spot } : null;
-  say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true, ['a02', clip(trip.poi.name) || (Math.random() < 0.5 ? 'g05' : 'g06')]);
+  if (trip.poi.key === 'pineapples') playSong('song_ananasi'); // Kostya's own song, no words before it
+  else say(kidName ? `Ура, ${kidName}, мы приехали! ${trip.poi.name}!` : 'Вы прибыли! ' + trip.poi.name + '!', true, ['a02', clip(trip.poi.name) || (Math.random() < 0.5 ? 'g05' : 'g06')]);
   $('arTitle').textContent = kidName ? `Ура, ${kidName}!` : 'Вы прибыли!';
   const arPic = $('arPic'), arPlace = $('arPlace');
   arPlace.innerHTML = '';
@@ -2453,15 +2483,28 @@ function clickSound(vol = 0.9, freq = 2400) {
 // hazard relay: tick when the lamps go on, tock when they go off (only while driving)
 let hazPhase = -1;
 function hazardTick() {
-  const ph = hazard ? Math.floor(performance.now() / 350) % 2 : -1;
-  if (ph !== hazPhase) { if (hazard && hazPhase !== -1 && mode === 'nav') clickSound(0.35, ph === 0 ? 2600 : 1700); hazPhase = ph; }
+  const ph = hazard || turnSig ? Math.floor(performance.now() / 350) % 2 : -1;
+  // buttons blink on the same clock as the lamps on the car
+  const lit = ph === 0;
+  $('btnHazard').classList.toggle('lit', hazard && lit);
+  $('btnTurnL').classList.toggle('lit', (hazard || turnSig === -1) && lit);
+  $('btnTurnR').classList.toggle('lit', (hazard || turnSig === 1) && lit);
+  if (ph !== hazPhase) { if ((hazard || turnSig) && hazPhase !== -1 && mode === 'nav') clickSound(0.35, ph === 0 ? 2600 : 1700); hazPhase = ph; }
 }
+function setTurn(v) {
+  turnSig = v; turnH0 = car.h;
+  $('btnTurnL').classList.toggle('on', v === -1); $('btnTurnR').classList.toggle('on', v === 1);
+}
+// like a real car: the blinker switches itself off once the turn is done
+function turnAutoOff() { if (turnSig && mode === 'nav' && Math.abs(angDiff(car.h, turnH0)) > 1.1) setTurn(0); }
+$('btnTurnL').onclick = () => { clickSound(); setTurn(turnSig === -1 ? 0 : -1); };
+$('btnTurnR').onclick = () => { clickSound(); setTurn(turnSig === 1 ? 0 : 1); };
 $('btnHazard').onclick = () => { clickSound(); hazard = !hazard; $('btnHazard').classList.toggle('on', hazard); };
 $('btnLights').onclick = () => { clickSound(); lightsOn = !lightsOn; $('btnLights').classList.toggle('on', lightsOn); };
 // ---------- special button: siren for police, meow for the cat, horn for the others ----------
 const SIREN_FILE = IOS ? 'snd/siren.wav' : 'snd/siren.ogg';
 const HORNS = { car_top: 'snd/horn1.mp3', car_blue: 'snd/horn2.mp3' };
-let hazard = false;
+let hazard = false, turnSig = 0, turnH0 = 0; // -1 left, 1 right
 let sirenOn = false, siren = null, meowUntil = 0, boostUntil = 0, boostReady = 0;
 const BOOST_MS = 5000, BOOST_CD = 10000;
 function setSpecial() {
@@ -2632,6 +2675,7 @@ function frame(now) {
   updateBus(dt);
   drawFuel(dt);
   hazardTick();
+  turnAutoOff();
   updateBreak(dt);
   updateCamera(dt);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2675,6 +2719,7 @@ async function boot() {
   buildDecor();
   placeParkings();
   buildLamps();
+  placeTower();
   buildPeople();
   buildBus();
   buildWinterDecor();
@@ -2686,6 +2731,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { setTurn: v => setTurn(v), get decor() { return decor; }, setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();
