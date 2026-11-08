@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v46'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v47'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -2457,9 +2457,10 @@ async function ignition() {
   if (btn.disabled) return;
   if (muted) { startNav(); return; }
   btn.disabled = true; btn.classList.add('turning');
-  const b = await sound('ign', 'snd/ignition.mp3'), a = audio();
+  const robot = carSkin === 'car_robot'; // the robot powers up instead of turning a key
+  const b = robot ? await sound('robot_on', 'snd/robot_on.mp3') : await sound('ign', 'snd/ignition.mp3'), a = audio();
   if (b && a) { const s = a.createBufferSource(), g = a.createGain(); g.gain.value = 0.9; s.buffer = b; s.connect(g).connect(a.destination); s.start(); }
-  setTimeout(() => { btn.disabled = false; btn.classList.remove('turning'); startNav(); engineStart(); }, 1600);
+  setTimeout(() => { btn.disabled = false; btn.classList.remove('turning'); startNav(); engineStart(); }, robot ? 1000 : 1600);
 }
 
 // ---------- fuel ----------
