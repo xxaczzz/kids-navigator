@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v39'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v45'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -376,7 +376,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'charger', 'car_service', 'bus', 'bus_stop', 'pineapples', 'unicorn_shop', 'parking_tower', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'car_robot', 'robot_leg', 'santa', 'xmas_truck', 'charger', 'car_service', 'bus', 'bus_stop', 'pineapples', 'unicorn_shop', 'parking_tower', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -1004,7 +1004,59 @@ function buildPath(route) {
     const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
     return { x: q.x - dy / l * lanes[i], y: q.y + dx / l * lanes[i], vmax: q.v };
   });
-  return profile(out);
+  return profile(dropBacksteps(smoothCorners(cutLoops(out))));
+}
+// the lane offset makes a tiny loop on tight inner corners (skewed crossings): cut every loop at its crossing point
+function cutLoops(P) {
+  const X = (a, b, c, d) => {
+    const r1x = b.x - a.x, r1y = b.y - a.y, r2x = d.x - c.x, r2y = d.y - c.y, den = r1x * r2y - r1y * r2x;
+    if (Math.abs(den) < 1e-9) return null;
+    const t = ((c.x - a.x) * r2y - (c.y - a.y) * r2x) / den, u = ((c.x - a.x) * r1y - (c.y - a.y) * r1x) / den;
+    return t > 0 && t < 1 && u > 0 && u < 1 ? t : null;
+  };
+  const out = [];
+  for (let i = 0; i < P.length; i++) {
+    out.push(P[i]);
+    if (i >= P.length - 2) continue;
+    let cut = -1, ct = 0;
+    for (let j = Math.min(P.length - 2, i + 60); j >= i + 2; j--) { const t = X(P[i], P[i + 1], P[j], P[j + 1]); if (t != null) { cut = j; ct = t; break; } }
+    if (cut > 0) { out.push({ ...P[i + 1], x: lerp(P[i].x, P[i + 1].x, ct), y: lerp(P[i].y, P[i + 1].y, ct) }); i = cut; }
+  }
+  return out;
+}
+// tiny steps backwards make a round blob on the drawn line and spin the car: keep points at least 2.5 m apart, always going forward
+function dropBacksteps(S) {
+  const out = [S[0]];
+  for (let i = 1; i < S.length; i++) {
+    const q = S[i], a = out[out.length - 1], d = Math.hypot(q.x - a.x, q.y - a.y);
+    if (d < 2.5 && i < S.length - 1) continue;
+    if (out.length >= 2) { const b = out[out.length - 2]; if ((a.x - b.x) * (q.x - a.x) + (a.y - b.y) * (q.y - a.y) < 0 && i < S.length - 1) continue; }
+    out.push(q);
+  }
+  return out;
+}
+// after a cut the corner has a sharp point: resample every 3 m and round it again
+function smoothCorners(P) {
+  const S = [P[0]];
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i], l = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.round(l / 3));
+    for (let k = 1; k <= n; k++) S.push({ ...b, x: lerp(a.x, b.x, k / n), y: lerp(a.y, b.y, k / n) });
+  }
+  const N = S.length;
+  for (let pass = 0; pass < 3; pass++) {
+    const xs = S.map(q => q.x), ys = S.map(q => q.y);
+    for (let i = 1; i < N - 1; i++) { const r = Math.min(4, i, N - 1 - i); let sx = 0, sy = 0; for (let k = i - r; k <= i + r; k++) { sx += xs[k]; sy += ys[k]; } S[i].x = sx / (2 * r + 1); S[i].y = sy / (2 * r + 1); }
+  }
+  // hooks and cusps that are left: smooth harder, only where the line bends too sharply
+  const ang = (i, w) => { const a = S[Math.max(0, i - w)], b = S[i], c = S[Math.min(N - 1, i + w)]; const h1 = Math.atan2(b.y - a.y, b.x - a.x), h2 = Math.atan2(c.y - b.y, c.x - b.x); return Math.abs(angDiff(h2, h1)); };
+  for (let pass = 0; pass < 12; pass++) {
+    const bad = new Uint8Array(N); let any = false;
+    for (let i = 3; i < N - 3; i++) if (ang(i, 3) > 0.75) { any = true; for (let k = Math.max(1, i - 6); k <= Math.min(N - 2, i + 6); k++) bad[k] = 1; }
+    if (!any) break;
+    const xs = S.map(q => q.x), ys = S.map(q => q.y);
+    for (let i = 1; i < N - 1; i++) { if (!bad[i]) continue; const r = Math.min(8, i, N - 1 - i); let sx = 0, sy = 0; for (let k = i - r; k <= i + r; k++) { sx += xs[k]; sy += ys[k]; } S[i].x = sx / (2 * r + 1); S[i].y = sy / (2 * r + 1); }
+  }
+  return S;
 }
 // arc length, heading, speed limits and time to the end for a list of path points
 function profile(out) {
@@ -1111,8 +1163,8 @@ let W = 0, H = 0, DPR = 1;
 const cam = { x: 0, y: 0, rot: 0, scale: 1, fy: 0.5 };
 const tgt = { x: 0, y: 0, rot: 0, scale: 1, fy: 0.5 };
 let mode = 'idle'; // idle | preview | nav | arrived
-const CARS = [['car_top', 'Красная'], ['car_police', 'Полиция'], ['car_cat', 'Котик'], ['car_blue', 'Синяя'], ['car_race', 'Гоночная'], ['car_tesla', 'Тесла']];
-const isEV = () => carSkin === 'car_tesla';
+const CARS = [['car_top', 'Красная'], ['car_police', 'Полиция'], ['car_cat', 'Котик'], ['car_blue', 'Синяя'], ['car_race', 'Гоночная'], ['car_tesla', 'Тесла'], ['car_robot', 'Робот']];
+const isEV = () => carSkin === 'car_tesla' || carSkin === 'car_robot';
 let carSkin = 'car_top';
 try { carSkin = localStorage.getItem('carSkin') || 'car_top'; } catch (e) { /* storage blocked */ }
 let userZoom = 1;
@@ -1146,6 +1198,14 @@ const GRASS = '#9ED47F';
 let winterMode = 'auto'; // auto | on | off
 try { winterMode = localStorage.getItem('winterMode') || 'auto'; } catch (e) { }
 let winter = false;
+// New Year: Santa and the truck caravan, on their own schedule (15 December - 15 January) or by hand
+let newYearMode = 'auto'; // auto | on | off
+try { newYearMode = localStorage.getItem('newYearMode') || 'auto'; } catch (e) { }
+function newYearNow() {
+  if (newYearMode !== 'auto') return newYearMode === 'on';
+  const d = new Date(), m = d.getMonth(), day = d.getDate();
+  return (m === 11 && day >= 15) || (m === 0 && day <= 15);
+}
 function winterNow() {
   if (winterMode !== 'auto') return winterMode === 'on';
   const d = new Date(), m = d.getMonth(), day = d.getDate();
@@ -1155,7 +1215,7 @@ const SNOWY = { '#9ED47F': '#EAF1F7', '#7FD08A': '#DCE7F0', '#86CC6A': '#E3ECF4'
 const wc = c => winter ? SNOWY[c] || c : c;
 // snow caps: on each column of a sprite the top few pixels under the outline turn white
 const SNOWCAP = {};
-const NO_SNOW = /^(fir$|snowman$|xmas_tree$|xmas_small$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
+const NO_SNOW = /^(xmas_truck$|santa$|fir$|snowman$|xmas_tree$|xmas_small$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
 function snowSprite(name) {
   if (name in SNOWCAP) return SNOWCAP[name];
   const im = IMG[name]; if (!im || NO_SNOW.test(name)) return (SNOWCAP[name] = null);
@@ -1785,6 +1845,7 @@ function drawCar(t) {
     if (broken && !repairAnim) drawSmoke(t, sx, sy, h, hh);
     const blinkOn = Math.floor(performance.now() / 350) % 2 === 0, hazOn = hazard && blinkOn, turnOn = !hazard && turnSig && blinkOn;
     ctx.save(); ctx.translate(sx, sy); ctx.rotate(h + Math.PI / 2);
+    if (carSkin === 'car_robot' && IMG.robot_leg) { drawRobot(top, hh); ctx.restore(); return; }
     if (mode === 'nav' && performance.now() < boostUntil) drawBoost(t, wpx, hh);
     ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(3, 4, wpx * 0.5, hh * 0.48, 0, 0, TAU); ctx.fill();
     ctx.drawImage(top, -wpx / 2, -hh / 2, wpx, hh);
@@ -1820,6 +1881,43 @@ function drawCar(t) {
   ctx.rotate(rot); ctx.scale(flip, 1);
   if (im) { const hh = wpx * im.height / im.width; ctx.drawImage(im, -wpx / 2, -hh * 0.75, wpx, hh); }
   ctx.restore();
+}
+// the robot walks: two legs step in turn with the distance driven, the body bobs and sways on each step
+let robotDist = 0, robotLast = null, robotGlowUntil = 0;
+function drawRobot(body, hh) {
+  const s = mode === 'nav' && trip ? trip.s : null;
+  if (s != null && robotLast != null && s > robotLast) robotDist += s - robotLast;
+  robotLast = s;
+  const L = hh * 0.95, bw = hh * 1.2, bh = bw * body.height / body.width;
+  const stride = 14, ph = robotDist / stride * Math.PI; // one step every 14 m
+  const leg = IMG.robot_leg, lw = L * leg.width / leg.height;
+  // legs first (under the body); the leg that swings forward is lifted, drawn a bit bigger
+  for (const side of [-1, 1]) {
+    const k = Math.sin(ph + (side > 0 ? Math.PI : 0));
+    const lift = Math.max(0, Math.cos(ph + (side > 0 ? Math.PI : 0))) * (Math.abs(k) < 1 ? 1 : 0);
+    const sc = 1 + 0.12 * Math.max(0, Math.cos(ph + (side > 0 ? Math.PI : 0)));
+    // the foot swings from behind the body to in front of it; the leg top stays under the body
+    ctx.save(); ctx.translate(side * bw * 0.3, -k * L * 0.42); ctx.scale(sc, sc);
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(3, -L * 0.3, lw * 0.42, lw * 0.36, 0, 0, TAU); ctx.fill();
+    ctx.drawImage(leg, -lw / 2, -L * 0.55, lw, L);
+    ctx.restore();
+  }
+  const bob = Math.abs(Math.sin(ph)), sway = Math.sin(ph) * 0.06;
+  ctx.rotate(sway);
+  const sc = 1 + 0.04 * bob;
+  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(4, 6, bw * 0.5, bh * 0.48, 0, 0, TAU); ctx.fill();
+  ctx.drawImage(body, -bw * sc / 2, -bh * sc / 2 - 2 * bob, bw * sc, bh * sc);
+  // the guard line: a blue shield ring pulses around the robot and the eyes shine
+  if (performance.now() < robotGlowUntil) {
+    const q = (performance.now() / 1000) % 0.8 / 0.8;
+    ctx.strokeStyle = `rgba(80,200,255,${0.9 * (1 - q)})`; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 0, bw * (0.6 + q * 0.5), 0, TAU); ctx.stroke();
+    for (const ex of [-0.17, 0.17]) {
+      const x = ex * bw * sc, y = -0.33 * bh * sc - 2 * bob, g = ctx.createRadialGradient(x, y, 0, x, y, bw * 0.22);
+      g.addColorStop(0, 'rgba(220,255,255,.95)'); g.addColorStop(1, 'rgba(80,220,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, bw * 0.22, 0, TAU); ctx.fill();
+    }
+  }
 }
 function drawBoost(t, wpx, hh) {
   // under the car: fire for the race car, a blue glow for the Tesla
@@ -2009,6 +2107,99 @@ function updateBus(dt) {
   const d = Math.hypot(B.x - car.x, B.y - car.y);
   busHum(B.wait > 0 ? 0.5 * clamp(1 - d / 500, 0, 1) : clamp(1 - d / 600, 0, 1));
 }
+// ---------- winter: a holiday truck caravan drives along the northern highway every 10-15 minutes ----------
+let caravan = null, caravanTimer = 90, caravanLights = null;
+// the caravan's way: in from the west on the highway, down into the old town, across the south bridge,
+// through the east district and back up to the highway at the east roundabout (waypoints are road crossings)
+const CARAVAN_WAY_PTS = [[1850, 3250], [3000, 3600], [3000, 4000], [5800, 4000], [5800, 4860], [8943, 4629], [9521, 3277], [10450, 3050], [10745, 2079]];
+let CARAVAN_WAY = null;
+function startCaravan(way) {
+  const near = (p, cross) => { let best = null, bd = 1e9; for (const n of nodes) { const deg = n.edges.filter(e => !edges[e].dead).length; if (!deg || (cross && deg < 3)) continue; const d = Math.hypot(n.x - p[0], n.y - p[1]); if (d < bd) { bd = d; best = n.id; } } return best; };
+  if (way) CARAVAN_WAY = way;
+  if (!CARAVAN_WAY) CARAVAN_WAY = CARAVAN_WAY_PTS.map(p => near(p, true));
+  let ids = [near(HWY[0]), ...(CARAVAN_WAY || []), near(HWY[HWY.length - 1])];
+  if (Math.random() < 0.5) ids.reverse();
+  let route = [], h = 0;
+  for (let i = 0; i < ids.length - 1; i++) {
+    if (ids[i] === ids[i + 1]) continue;
+    const leg = findRoute(ids[i], ids[i + 1], h); if (!leg) return;
+    route = route.concat(leg); const last = leg[leg.length - 1]; h = Math.atan2(nodes[ids[i + 1]].y - nodes[ids[i]].y, nodes[ids[i + 1]].x - nodes[ids[i]].x);
+  }
+  const path = buildPath(route);
+  caravan = { path, L: path[path.length - 1].s, s: 0, v: 45, gap: 36 * 384 / 257 * 3.2 + 30, n: 3 };
+}
+// the bulbs painted on the truck (centres as fractions of the picture); each one gets a color in turn
+const TRUCK_BULBS = [[0.4954,0.0102],[0.5897,0.0125],[0.3891,0.0129],[0.6756,0.0193],[0.313,0.0198],[0.2566,0.0317],[0.7357,0.0317],[0.2206,0.0482],[0.7746,0.048],[0.2054,0.0672],[0.7912,0.0671],[0.4978,0.0733],[0.3974,0.0745],[0.593,0.0744],[0.6871,0.0783],[0.31,0.0784],[0.2217,0.0866],[0.7748,0.087],[0.192,0.1104],[0.8034,0.1108],[0.4964,0.1351],[0.3928,0.1358],[0.5969,0.1358],[0.2717,0.1411],[0.7161,0.1406],[0.1969,0.1552],[0.7954,0.1555],[0.1784,0.1741],[0.814,0.1739],[0.171,0.1943],[0.8238,0.194],[0.1677,0.2167],[0.825,0.2167],[0.168,0.2394],[0.8266,0.2395],[0.1771,0.2623],[0.8147,0.2628],[0.2156,0.2797],[0.7635,0.2804],[0.298,0.2833],[0.3971,0.2836],[0.4962,0.2836],[0.5838,0.2836],[0.6769,0.2832],[0.2292,0.322],[0.4112,0.3221],[0.3235,0.3221],[0.4995,0.3223],[0.5966,0.3221],[0.6893,0.3222],[0.7834,0.322],[0.1436,0.3242],[0.8595,0.3245],[0.103,0.3378],[0.8936,0.3378],[0.0994,0.3612],[0.8976,0.3611],[0.0985,0.386],[0.8988,0.3861],[0.0992,0.4113],[0.8989,0.4114],[0.0989,0.439],[0.8984,0.4393],[0.099,0.4662],[0.8998,0.4665],[0.0988,0.4932],[0.8998,0.4932],[0.0989,0.5183],[0.8998,0.5189],[0.0983,0.5451],[0.9002,0.5446],[0.0982,0.5705],[0.9001,0.5715],[0.0983,0.5966],[0.9003,0.5968],[0.0987,0.6213],[0.8997,0.6219],[0.0987,0.647],[0.9,0.6474],[0.099,0.6721],[0.9005,0.6724],[0.0991,0.698],[0.9004,0.6984],[0.0984,0.7229],[0.8998,0.7227],[0.0982,0.7491],[0.8999,0.7493],[0.0985,0.7749],[0.9018,0.7758],[0.0985,0.8007],[0.9014,0.801],[0.0986,0.8256],[0.9009,0.8258],[0.0977,0.8513],[0.9015,0.851],[0.0981,0.8772],[0.902,0.8781],[0.0986,0.9038],[0.9014,0.9041],[0.0983,0.9297],[0.9014,0.9294],[0.0987,0.9531],[0.9016,0.9532],[0.1042,0.9751],[0.8948,0.9752],[0.1801,0.9865],[0.2886,0.9866],[0.391,0.9867],[0.4979,0.9865],[0.6056,0.9866],[0.7092,0.9866],[0.8159,0.9866]];
+function truckLights() { return TRUCK_BULBS.map(([x, y], k) => [x, y, k % 4]); }
+function updateCaravan(dt) {
+  if (!newYearNow()) { if (caravan) { caravan = null; caravanSong(0); } return; }
+  if (!caravan) { caravanTimer -= dt; if (caravanTimer <= 0) { caravanTimer = 600; startCaravan(); } return; }
+  const C = caravan; C.s += C.v * dt;
+  if (C.s - (C.n - 1) * C.gap > C.L) { caravan = null; caravanSong(0); return; }
+  // the song is heard near the caravan: by distance from the middle of the screen
+  const q = posAt(C.path, clamp(C.s - C.gap, 0, C.L)), [sx, sy] = w2s(q.x, q.y);
+  const d = Math.hypot(sx - W / 2, sy - H / 2) / Math.hypot(W / 2, H / 2);
+  caravanSong(clamp(1.4 - d, 0, 1));
+}
+function posAt(P, s) {
+  let lo = 0, hi = P.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (P[m].s < s) lo = m; else hi = m; }
+  const a = P[lo], b = P[hi], t = clamp((s - a.s) / ((b.s - a.s) || 1), 0, 1);
+  return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), h: a.h + angDiff(b.h, a.h) * t };
+}
+function drawCaravan() {
+  const C = caravan, im = IMG.xmas_truck; if (!C || !im) return;
+  const len = Math.max(18, 36 * cam.scale) * 384 / 257 * 3.2, wid = len * im.width / im.height;
+  const lights = caravanLights || (caravanLights = truckLights());
+  for (let i = 0; i < C.n; i++) {
+    const s = C.s - i * C.gap; if (s < 0 || s > C.L) continue;
+    const q = posAt(C.path, s), [sx, sy] = w2s(q.x, q.y);
+    if (sx < -300 || sx > W + 300 || sy < -300 || sy > H + 300) continue;
+    const near = Math.hypot(q.x - car.x, q.y - car.y) < 140;
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(q.h + cam.rot + Math.PI / 2); ctx.globalAlpha = near ? 0.45 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; roundRect(-wid / 2 + 3, -len / 2 + 5, wid, len, wid * 0.2); ctx.fill();
+    ctx.drawImage(im, -wid / 2, -len / 2, wid, len);
+    if (lights) {
+      // colored bulbs blink like a garland, as bright as the hazard lights: a hot white core and a wide colored glow
+      const tt = performance.now() / 1000, rr = Math.max(1.3, wid * 0.03), G = BULB_GLOW || (BULB_GLOW = makeBulbGlow());
+      for (const [fx, fy, k] of lights) {
+        // one minute all bulbs glow steady warm yellow, the next minute the colors run along the garland
+        const party = Math.floor((tt + garlandShift) / 60) % 2 === 1;
+        const step = Math.floor(tt * 2.5) + i, c = party ? (k + step) % 4 : 3;
+        if (party && (k + step) % 4 === 3 && (k >> 2) % 2 === step % 2) continue;
+        const x = (fx - 0.5) * wid, y = (fy - 0.5) * len, R = rr * 3.2;
+        ctx.globalAlpha = near ? 0.45 : 1;
+        ctx.drawImage(G[c], x - R, y - R, 2 * R, 2 * R);
+      }
+    }
+    ctx.restore();
+  }
+}
+let BULB_GLOW = null, garlandShift = 0;
+function makeBulbGlow() {
+  return [[255, 60, 60], [60, 255, 110], [70, 160, 255], [255, 215, 50]].map(([r, g, b]) => {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+    const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(${r},${g},${b},1)`); gr.addColorStop(0.3, `rgba(${r},${g},${b},1)`); gr.addColorStop(0.55, `rgba(${r},${g},${b},.45)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    x.fillStyle = 'rgba(255,255,255,.85)'; x.beginPath(); x.arc(28, 28, 4, 0, 7); x.fill(); return c;
+  });
+}
+let chum = null;
+async function caravanSong(g) {
+  if (!actx) return;
+  if (muted || !voiceOn) g = 0;
+  if (!chum && g > 0.01) {
+    chum = { starting: true };
+    const b = await sound('caravan', 'snd/caravan.mp3'), a = audio();
+    if (!b || !a) { chum = null; return; }
+    const src = a.createBufferSource(), gain = a.createGain(); src.buffer = b; src.loop = true;
+    gain.gain.value = 0; src.connect(gain).connect(a.destination); src.start(); chum = { src, gain, g: 0 };
+  }
+  if (chum && chum.gain && Math.abs(chum.g - g) > 0.02) {
+    chum.g = g; chum.gain.gain.setTargetAtTime(g * 0.9, actx.currentTime, 0.4);
+    if (g <= 0.01 && !caravan) { const c = chum; chum = null; c.gain.gain.setTargetAtTime(0, actx.currentTime, 0.3); setTimeout(() => { try { c.src.stop(); } catch (e) { } }, 1500); }
+  }
+}
 function drawBus() {
   const B = BUS; if (!B) return;
   const [sx, sy] = w2s(B.x, B.y); if (sx < -200 || sx > W + 200 || sy < -200 || sy > H + 200) return;
@@ -2035,6 +2226,41 @@ async function busHum(g) {
     bhum = { src, gain, g: 0 };
   }
   if (bhum && bhum.gain && Math.abs(bhum.g - g) > 0.02) { bhum.g = g; bhum.gain.gain.setTargetAtTime(g * 0.5, actx.currentTime, 0.3); }
+}
+// ---------- Santa: in winter his sleigh flies over the city about every 10 minutes, with the holiday song ----------
+let santa = null, santaTimer = 60;
+function startSanta() {
+  // fly straight across what is on the screen now, so Kostya sees it
+  const a = Math.random() * TAU, d = [Math.cos(a), Math.sin(a)], span = Math.hypot(W, H) / cam.scale * 0.5 + 250;
+  const c = [cam.x, cam.y], from = [c[0] - d[0] * span, c[1] - d[1] * span];
+  santa = { x: from[0], y: from[1], d, h: a, v: AIR_V * 2 / 3, // a third slower than the plane
+    left: 2 * span, sparks: [] };
+  playSong('santa');
+}
+function drawSanta(dt) {
+  if (!newYearNow()) { if (santa) { santa = null; stopSong(); } return; }
+  if (!santa) { santaTimer -= dt; if (santaTimer <= 0 && mode !== 'preview') { santaTimer = 540 + Math.random() * 120; startSanta(); } return; }
+  const S = santa, im = IMG.santa;
+  S.x += S.d[0] * S.v * dt; S.y += S.d[1] * S.v * dt; S.left -= S.v * dt;
+  if (S.left <= 0) { santa = null; return; }
+  const len = Math.max(190, 300 * cam.scale), wid = im ? len * im.width / im.height : len * 0.35, bob = Math.sin(performance.now() / 300) * 4;
+  // golden sparkles fall behind the sleigh
+  if (Math.random() < dt * 25) S.sparks.push({ x: S.x - S.d[0] * 110, y: S.y - S.d[1] * 110, life: 1 });
+  ctx.save();
+  for (const k of S.sparks) {
+    k.life -= dt * 0.8; if (k.life <= 0) continue;
+    const [px, py] = w2s(k.x, k.y); ctx.globalAlpha = k.life; ctx.fillStyle = '#FFD23F';
+    ctx.beginPath(); for (let j = 0; j < 4; j++) { const an = j * Math.PI / 2, r = 6 * k.life + 2; ctx.lineTo(px + Math.cos(an) * r, py + Math.sin(an) * r); ctx.lineTo(px + Math.cos(an + Math.PI / 4) * r * 0.35, py + Math.sin(an + Math.PI / 4) * r * 0.35); } ctx.fill();
+  }
+  S.sparks = S.sparks.filter(k => k.life > 0);
+  ctx.restore();
+  const [sx, sy] = w2s(S.x, S.y);
+  for (const shadow of [true, false]) {
+    ctx.save(); ctx.translate(sx + (shadow ? 60 : 0), sy + (shadow ? 90 : bob)); ctx.rotate(S.h + cam.rot + Math.PI / 2);
+    if (shadow) { ctx.globalAlpha = 0.15; ctx.filter = 'brightness(0)'; }
+    if (im) ctx.drawImage(im, -wid / 2, -len / 2, wid, len);
+    ctx.restore();
+  }
 }
 function drawConfetti(dt) {
   if (!confetti.length) return;
@@ -2191,7 +2417,8 @@ addEventListener('pointerdown', () => { audio(); sound('ign', 'snd/ignition.mp3'
 let eng = null; // {src, gain}
 async function engineStart() {
   if (muted || !engineOn || eng || mode !== 'nav') return;
-  const b = await sound('eng', ENGINE_FILE); const a = audio(); if (!b || !a || eng || mode !== 'nav') return;
+  const robot = carSkin === 'car_robot';
+  const b = robot ? await sound('robot', IOS ? 'snd/robot.wav' : 'snd/robot.ogg') : await sound('eng', ENGINE_FILE); const a = audio(); if (!b || !a || eng || mode !== 'nav') return;
   const src = a.createBufferSource(), gain = a.createGain();
   src.buffer = b; src.loop = true; src.connect(gain).connect(a.destination);
   gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(0.5, a.currentTime + 0.6);
@@ -2200,6 +2427,8 @@ async function engineStart() {
 function engineSpeed(v) {
   if (!eng) return;
   const k = Math.min(1, v / 110), a = actx;
+  // robot: steps follow the walking speed (one step every 14 m), quiet when standing
+  if (carSkin === 'car_robot') { eng.src.playbackRate.setTargetAtTime(clamp(v / 40, 0.55, 1.8), a.currentTime, 0.3); eng.gain.gain.setTargetAtTime(v < 3 ? 0.1 : 0.55, a.currentTime, 0.2); return; }
   eng.src.playbackRate.setTargetAtTime(0.85 + 0.75 * k, a.currentTime, 0.3);
   eng.gain.gain.setTargetAtTime(0.5 + 0.35 * k, a.currentTime, 0.3);
 }
@@ -2223,7 +2452,7 @@ async function ignition() {
 const FUEL_METERS = 35000, FUEL_MIN = 0.05; // a full tank is about 8 trips; never runs dry
 let fuel = 1, fuelSaved = 0, refuelAnim = null;
 // the Tesla has its own battery; all the other cars share one fuel tank
-const fuelKey = () => isEV() ? 'battery' : 'fuel';
+const fuelKey = () => carSkin === 'car_robot' ? 'battery_robot' : isEV() ? 'battery' : 'fuel';
 function loadFuel() { fuel = 1; try { const f = parseFloat(localStorage.getItem(fuelKey())); if (f >= 0) fuel = Math.max(FUEL_MIN, Math.min(1, f)); } catch (e) { } }
 loadFuel();
 const saveFuel = () => { try { localStorage.setItem(fuelKey(), fuel.toFixed(3)); } catch (e) { } };
@@ -2276,14 +2505,29 @@ function startRepair() {
   say('Чиним машинку!');
   setTimeout(() => { repairAnim = { t: 0 }; playOnce('repair', 'snd/repair.mp3', 1); }, 2000);
 }
-// grey smoke puffs behind a broken car
+// smoke from a broken car: cartoon puffs that leave the exhaust, grow, drift up and fade
 function drawSmoke(t, sx, sy, h, hh) {
   ctx.save();
-  for (let i = 0; i < 4; i++) {
-    const k = (t * 0.9 + i / 4) % 1, back = hh * (0.55 + k * 0.9);
-    const x = sx - Math.cos(h) * back + Math.sin(t * 3 + i) * 4, y = sy - Math.sin(h) * back - k * 18;
-    ctx.globalAlpha = 0.75 * (1 - k * 0.8); ctx.fillStyle = '#4A505C'; ctx.strokeStyle = '#F2F4F7'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, hh * (0.16 + k * 0.3), 0, TAU); ctx.fill(); ctx.stroke();
+  const N = 5, speed = 0.45;
+  const puffs = [];
+  for (let i = 0; i < N; i++) {
+    const k = (t * speed + i / N) % 1;
+    const seed = Math.floor(t * speed + i / N) * 7 + i;
+    const wob = Math.sin(seed * 12.9898);
+    const back = hh * (0.55 + k * 1.5);
+    puffs.push({ k, x: sx - Math.cos(h) * back + Math.sin(h) * hh * 0.35 * wob * k, y: sy - Math.sin(h) * back - k * hh * 0.9, r: hh * (0.13 + k * 0.36), a: k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88 });
+  }
+  puffs.sort((p, q) => q.k - p.k); // older puffs behind
+  const blobs = [[0, 0, 1], [-0.62, 0.18, 0.72], [0.6, 0.2, 0.68], [0.05, -0.55, 0.62]];
+  for (const P of puffs) {
+    ctx.globalAlpha = 0.95 * P.a;
+    // outline first, then the fill, so the blobs merge into one cloud
+    ctx.fillStyle = '#7C828D';
+    ctx.beginPath(); for (const [ox, oy, rr] of blobs) { const cx = P.x + ox * P.r, cy = P.y + oy * P.r; ctx.moveTo(cx + P.r * rr + 2, cy); ctx.arc(cx, cy, P.r * rr + 2, 0, TAU); } ctx.fill();
+    ctx.fillStyle = P.k < 0.3 ? '#A7ADB7' : '#C9CDD4';
+    ctx.beginPath(); for (const [ox, oy, rr] of blobs) { const cx = P.x + ox * P.r, cy = P.y + oy * P.r; ctx.moveTo(cx + P.r * rr, cy); ctx.arc(cx, cy, P.r * rr, 0, TAU); } ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.arc(P.x - P.r * 0.3, P.y - P.r * 0.35, P.r * 0.32, 0, TAU); ctx.fill();
   }
   ctx.restore();
 }
@@ -2443,7 +2687,10 @@ function showWinter() { $('winterMode').textContent = WINTER_NAMES[winterMode]; 
 $('winterMode').onclick = () => { winterMode = { auto: 'on', on: 'off', off: 'auto' }[winterMode]; try { localStorage.setItem('winterMode', winterMode); } catch (e) { } showWinter(); showWeather(); };
 function showWeather() { $('weatherMode').textContent = { auto: '🌦️ Погода: сама меняется', clear: '☀️ Погода: ясно', wet: winterNow() ? '🌨️ Погода: снегопад' : '🌧️ Погода: дождь' }[weatherMode]; }
 $('weatherMode').onclick = () => { weatherMode = { auto: 'clear', clear: 'wet', wet: 'auto' }[weatherMode]; try { localStorage.setItem('weatherMode', weatherMode); } catch (e) { } showWeather(); };
-showWinter(); showWeather();
+const NY_NAMES = { auto: '🎅 Новый год: 15 дек - 15 янв', on: '🎅 Новый год: включен', off: '🎅 Новый год: выключен' };
+function showNewYear() { $('newYearMode').textContent = NY_NAMES[newYearMode]; }
+$('newYearMode').onclick = () => { newYearMode = { auto: 'on', on: 'off', off: 'auto' }[newYearMode]; try { localStorage.setItem('newYearMode', newYearMode); } catch (e) { } showNewYear(); };
+showWinter(); showWeather(); showNewYear();
 const DAY_NAMES = { auto: '🌗 Время суток: как на часах', day: '☀️ Время суток: всегда день', night: '🌙 Время суток: всегда ночь' };
 function showDayMode() { $('dayMode').textContent = DAY_NAMES[dayMode]; }
 $('dayMode').onclick = () => { dayMode = { auto: 'day', day: 'night', night: 'auto' }[dayMode]; try { localStorage.setItem('dayMode', dayMode); } catch (e) { } showDayMode(); };
@@ -2510,7 +2757,7 @@ const BOOST_MS = 5000, BOOST_CD = 10000;
 function setSpecial() {
   sirenOn = false; $('btnSpecial').classList.remove('on');
   boostUntil = 0; boostReady = 0; $('btnSpecial').style.background = '';
-  $('btnSpecial').textContent = { car_police: '🚨', car_cat: '🐾', car_race: '🔥', car_tesla: '⚡' }[carSkin] || '📯';
+  $('btnSpecial').textContent = { car_police: '🚨', car_cat: '🐾', car_race: '🔥', car_tesla: '⚡', car_robot: '🛡️' }[carSkin] || '📯';
   if (carSkin === 'car_race' || carSkin === 'car_tesla') sound('nitro', 'snd/nitro.mp3');
   else if (carSkin === 'car_police') sound('siren', SIREN_FILE);
   else if (carSkin === 'car_cat') sound('meow', 'snd/meow.mp3');
@@ -2554,6 +2801,9 @@ $('btnSpecial').onclick = () => {
   } else if (carSkin === 'car_race' || carSkin === 'car_tesla') {
     const now = performance.now(); if (now < boostReady) return;
     boostUntil = now + BOOST_MS; boostReady = now + BOOST_MS + BOOST_CD; playOnce('nitro', 'snd/nitro.mp3', 0.9);
+  } else if (carSkin === 'car_robot') {
+    robotGlowUntil = performance.now() + 3500;
+    say(kidName ? `Я робот-защитник! Защищаю ${kidName}!` : 'Я робот-защитник!', true, ['k02']);
   } else if (carSkin === 'car_cat') {
     meowUntil = performance.now() + 1800; playOnce('meow', 'snd/meow.mp3', 1);
   } else playOnce('horn_' + carSkin, HORNS[carSkin] || HORNS.car_top, 0.8);
@@ -2673,6 +2923,7 @@ function frame(now) {
   updateTrip(dt);
   movePeople(dt);
   updateBus(dt);
+  updateCaravan(dt);
   drawFuel(dt);
   hazardTick();
   turnAutoOff();
@@ -2699,8 +2950,10 @@ function frame(now) {
   drawPin(t);
   drawHeadlights();
   drawBus();
+  drawCaravan();
   drawCar(t);
   drawPlane(dt);
+  drawSanta(dt);
   drawWeather(dt);
   drawConfetti(dt);
   requestAnimationFrame(frame);
@@ -2731,6 +2984,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { setTurn: v => setTurn(v), get decor() { return decor; }, setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { setGarland(p) { garlandShift = p ? 60 - (performance.now() / 1000) % 120 + 1 : -(performance.now() / 1000) % 120 + 1; }, startCaravan: w => startCaravan(w), get caravan() { return caravan; }, startSanta: () => startSanta(), get santa() { return santa; }, setTurn: v => setTurn(v), get decor() { return decor; }, setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();
