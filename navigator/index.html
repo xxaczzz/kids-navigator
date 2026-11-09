@@ -193,6 +193,14 @@
     .card { left: auto; width: min(460px, 60vw); }
     #arrived { left: 50%; transform: translate(-50%, -50%); }
   }
+  #washGame { position: fixed; inset: 0; z-index: 50; background: #CFE8F7; touch-action: none; }
+  #washGame canvas { position: absolute; inset: 0; touch-action: none; }
+  #washGame .wgClose { position: absolute; right: 14px; top: calc(env(safe-area-inset-top) + 14px); width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.9); font-size: 22px; box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+  #washGame .wgHint { position: absolute; left: 16px; right: 72px; top: calc(env(safe-area-inset-top) + 24px); text-align: center; font: 800 20px system-ui; color: #1D2A44; pointer-events: none; }
+  #washGame .wgBar { position: absolute; left: 20%; right: 20%; top: calc(env(safe-area-inset-top) + 62px); height: 14px; border-radius: 7px; background: rgba(255,255,255,.7); overflow: hidden; pointer-events: none; }
+  #washGame .wgBar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5BB8F5, #7BC96F); transition: width .25s; }
+  #washGame .wgGo { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 40px); transform: translateX(-50%); padding: 18px 34px; border-radius: 22px; background: #27AE60; color: #fff; font: 800 24px system-ui; box-shadow: 0 5px 0 #1B7A43, 0 8px 18px rgba(0,0,0,.25); }
+  #washGame .wgGo.hidden { display: none; }
 </style>
 </head>
 <body>

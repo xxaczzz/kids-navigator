@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = 'v47'; // keep in sync with VERSION in sw.js
+const APP_VERSION = 'v50'; // keep in sync with VERSION in sw.js
 /* Kids navigator toy. All map data is fake. 1 world unit = 1 meter. */
 
 // ---------- utils ----------
@@ -376,7 +376,7 @@ function placePois() {
 }
 
 // ---------- sprites ----------
-const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'car_robot', 'robot_leg', 'santa', 'xmas_truck', 'charger', 'car_service', 'bus', 'bus_stop', 'pineapples', 'unicorn_shop', 'parking_tower', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
+const SPRITES = ['person_businessman', 'person_couple', 'person_dog', 'person_girl_balloon', 'person_grandma', 'person_grandpa', 'person_icecream', 'person_kid', 'person_mom_stroller', 'person_runner', 'person_scooter', 'person_tourist', 'parking_lot_small', 'parking_lot_medium', 'parking_lot_big', 'parking_small', 'parking_medium', 'parking_big', 'boat_sail', 'boat_ferry', 'boat_fishing', 'boat_yacht', 'train_engine', 'train_car', 'car', 'car_top', 'car_police', 'car_cat', 'car_blue', 'car_race', 'car_tesla', 'car_robot', 'robot_leg', 'santa', 'xmas_truck', 'side_car_top', 'side_car_police', 'side_car_cat', 'side_car_blue', 'side_car_race', 'side_car_tesla', 'side_car_robot', 'winter_person_businessman', 'winter_person_couple', 'winter_person_dog', 'winter_person_girl_balloon', 'winter_person_grandma', 'winter_person_grandpa', 'winter_person_icecream', 'winter_person_kid', 'winter_person_mom_stroller', 'winter_person_runner', 'winter_person_scooter', 'winter_person_tourist', 'charger', 'car_service', 'bus', 'bus_stop', 'pineapples', 'unicorn_shop', 'parking_tower', 'fir', 'snowman', 'xmas_tree', 'xmas_small', 'car_front', 'car_side', 'pin', 'airplane', 'house_1', 'house_2', 'house_3', 'house_4', 'tree_1', 'tree_2', 'tree_3', 'bush', 'pond',
   'apartment_1', 'apartment_2', 'office_tower', 'windmill', 'haystack', 'cows', 'sheep', 'tractor', 'tent', 'beehives', 'apple_tree', 'rocks', 'deer', 'fountain', 'crane', ...new Set(POI_DEFS.map(p => p[2]))];
 const IMG = {};
 function loadSprites() {
@@ -1098,7 +1098,7 @@ const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform 
 let voiceOn = true;
 try { voiceOn = localStorage.getItem('voiceOn') !== '0'; } catch (e) { }
 // recorded voice: one file per phrase, snd/v/<code>.mp3 (the list lives in the Map-car project, voice-phrases.md)
-const VOICE_TEXT = {"a01": "Костя, поехали!", "a02": "Ура, Костя, мы приехали!", "b01": "Едем домой", "b02": "Едем в садик", "b03": "Едем в школу", "b04": "Едем в магазин", "b05": "Едем на заправку", "b06": "Едем к пожарным", "b07": "Едем в парк", "b08": "Едем в полицию", "b09": "Едем на мойку", "b10": "Едем в больницу", "b11": "Едем на вокзал", "b12": "Едем в кино", "b13": "Едем на почту", "b14": "Едем на стадион", "b15": "Едем за мороженым", "b16": "Едем в пиццерию", "b17": "Едем в аэропорт", "b18": "Едем на аттракционы", "b19": "Едем к бабушке", "b20": "Едем в зоопарк", "b21": "Едем к маяку", "b22": "Едем в Орби Сити", "b23": "Едем на пляж", "b24": "Едем на пристань", "b25": "Едем в аквапарк", "b26": "Едем в пекарню", "b27": "Едем в библиотеку", "b28": "Едем в цирк", "b29": "Едем за игрушками", "b30": "Едем к динозаврам", "b31": "Едем в ветклинику", "b32": "Едем на ферму", "b33": "Едем в лагерь", "b34": "Едем на пикник", "b35": "Едем в Марриотт", "b36": "Едем на площадь Европы", "b37": "Едем в Гранд Молл", "b38": "Едем в Метро Сити", "b39": "Едем в Макдональдс", "b40": "Едем на курорт", "b41": "Едем в замок", "b42": "Едем в гости", "c01": "Дом", "c02": "Садик", "c03": "Школа", "c04": "Магазин", "c05": "Заправка", "c06": "Пожарные", "c07": "Парк", "c08": "Полиция", "c09": "Мойка", "c10": "Больница", "c11": "Вокзал", "c12": "Кино", "c13": "Почта", "c14": "Стадион", "c15": "Мороженое", "c16": "Пицца", "c17": "Аэропорт", "c18": "Аттракционы", "c19": "Бабушка", "c20": "Зоопарк", "c21": "Маяк", "c22": "Орби Сити", "c23": "Пляж", "c24": "Пристань", "c25": "Аквапарк", "c26": "Пекарня", "c27": "Библиотека", "c28": "Цирк", "c29": "Игрушки", "c30": "Динозавры", "c31": "Ветклиника", "c32": "Ферма", "c33": "Лагерь", "c34": "Пикник", "c35": "Марриотт", "c36": "Площадь Европы", "c37": "Гранд Молл", "c38": "Метро Сити", "c39": "Макдональдс", "c40": "Курорт", "c41": "Замок", "c42": "Домик", "c43": "Многоэтажка", "c44": "Офис", "d01": "Скоро кольцо, первый съезд", "d02": "Скоро кольцо, второй съезд", "d03": "Скоро кольцо, третий съезд", "d04": "Скоро кольцо, четвертый съезд", "d05": "На кольце первый съезд", "d06": "На кольце второй съезд", "d07": "На кольце третий съезд", "d08": "На кольце четвертый съезд", "e01": "Едем прямо, долго-долго", "e02": "Скоро приедем!", "f01": "Костя, бензин заканчивается! Поехали на заправку!", "f02": "Заправляемся!", "f03": "Бак полный! Можно ехать!", "g01": "Поехали!", "g02": "Едем в новое место!", "g03": "Посмотрим, что там!", "g04": "Приехали!", "g05": "Вот мы и на месте!", "g06": "Какое интересное место!", "h01": "Внимание, полиция едет!", "h02": "Костя, батарея садится! Поехали на зарядку!", "h03": "Заряжаемся!", "h04": "Батарея заряжена!", "h05": "Едем на зарядку", "h06": "Едем на парковку", "h07": "Едем в автосервис", "h08": "Ой, Костя! Машинка сломалась! Поехали в автосервис!", "h09": "Чиним машинку!", "h10": "Машинка как новая! Можно ехать!", "h11": "Едем к ананасам", "h12": "Едем в Лошадину", "h13": "Едем на высокую парковку", "h14": "Высокая парковка", "k01": "Лошадина"};
+const VOICE_TEXT = {"a01": "Костя, поехали!", "a02": "Ура, Костя, мы приехали!", "b01": "Едем домой", "b02": "Едем в садик", "b03": "Едем в школу", "b04": "Едем в магазин", "b05": "Едем на заправку", "b06": "Едем к пожарным", "b07": "Едем в парк", "b08": "Едем в полицию", "b09": "Едем на мойку", "b10": "Едем в больницу", "b11": "Едем на вокзал", "b12": "Едем в кино", "b13": "Едем на почту", "b14": "Едем на стадион", "b15": "Едем за мороженым", "b16": "Едем в пиццерию", "b17": "Едем в аэропорт", "b18": "Едем на аттракционы", "b19": "Едем к бабушке", "b20": "Едем в зоопарк", "b21": "Едем к маяку", "b22": "Едем в Орби Сити", "b23": "Едем на пляж", "b24": "Едем на пристань", "b25": "Едем в аквапарк", "b26": "Едем в пекарню", "b27": "Едем в библиотеку", "b28": "Едем в цирк", "b29": "Едем за игрушками", "b30": "Едем к динозаврам", "b31": "Едем в ветклинику", "b32": "Едем на ферму", "b33": "Едем в лагерь", "b34": "Едем на пикник", "b35": "Едем в Марриотт", "b36": "Едем на площадь Европы", "b37": "Едем в Гранд Молл", "b38": "Едем в Метро Сити", "b39": "Едем в Макдональдс", "b40": "Едем на курорт", "b41": "Едем в замок", "b42": "Едем в гости", "c01": "Дом", "c02": "Садик", "c03": "Школа", "c04": "Магазин", "c05": "Заправка", "c06": "Пожарные", "c07": "Парк", "c08": "Полиция", "c09": "Мойка", "c10": "Больница", "c11": "Вокзал", "c12": "Кино", "c13": "Почта", "c14": "Стадион", "c15": "Мороженое", "c16": "Пицца", "c17": "Аэропорт", "c18": "Аттракционы", "c19": "Бабушка", "c20": "Зоопарк", "c21": "Маяк", "c22": "Орби Сити", "c23": "Пляж", "c24": "Пристань", "c25": "Аквапарк", "c26": "Пекарня", "c27": "Библиотека", "c28": "Цирк", "c29": "Игрушки", "c30": "Динозавры", "c31": "Ветклиника", "c32": "Ферма", "c33": "Лагерь", "c34": "Пикник", "c35": "Марриотт", "c36": "Площадь Европы", "c37": "Гранд Молл", "c38": "Метро Сити", "c39": "Макдональдс", "c40": "Курорт", "c41": "Замок", "c42": "Домик", "c43": "Многоэтажка", "c44": "Офис", "d01": "Скоро кольцо, первый съезд", "d02": "Скоро кольцо, второй съезд", "d03": "Скоро кольцо, третий съезд", "d04": "Скоро кольцо, четвертый съезд", "d05": "На кольце первый съезд", "d06": "На кольце второй съезд", "d07": "На кольце третий съезд", "d08": "На кольце четвертый съезд", "e01": "Едем прямо, долго-долго", "e02": "Скоро приедем!", "f01": "Костя, бензин заканчивается! Поехали на заправку!", "f02": "Заправляемся!", "f03": "Бак полный! Можно ехать!", "g01": "Поехали!", "g02": "Едем в новое место!", "g03": "Посмотрим, что там!", "g04": "Приехали!", "g05": "Вот мы и на месте!", "g06": "Какое интересное место!", "h01": "Внимание, полиция едет!", "h02": "Костя, батарея садится! Поехали на зарядку!", "h03": "Заряжаемся!", "h04": "Батарея заряжена!", "h05": "Едем на зарядку", "h06": "Едем на парковку", "h07": "Едем в автосервис", "h08": "Ой, Костя! Машинка сломалась! Поехали в автосервис!", "h09": "Чиним машинку!", "h10": "Машинка как новая! Можно ехать!", "h11": "Едем к ананасам", "h12": "Едем в Лошадину", "h13": "Едем на высокую парковку", "h14": "Высокая парковка", "h15": "Машинка грязная! Давай помоем!", "h16": "Наносим пену!", "h17": "Трем губкой!", "h18": "Теперь смываем водичкой!", "h19": "Ура! Машинка чистая!", "k01": "Лошадина"};
 const vkey = t => String(t).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const VOICE_BY_TEXT = {};
 for (const [c, t] of Object.entries(VOICE_TEXT)) VOICE_BY_TEXT[vkey(t)] = c;
@@ -1215,7 +1215,7 @@ const SNOWY = { '#9ED47F': '#EAF1F7', '#7FD08A': '#DCE7F0', '#86CC6A': '#E3ECF4'
 const wc = c => winter ? SNOWY[c] || c : c;
 // snow caps: on each column of a sprite the top few pixels under the outline turn white
 const SNOWCAP = {};
-const NO_SNOW = /^(xmas_truck$|santa$|fir$|snowman$|xmas_tree$|xmas_small$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
+const NO_SNOW = /^(side_|winter_person_|xmas_truck$|santa$|fir$|snowman$|xmas_tree$|xmas_small$|person_|boat_|train_|car_(top|police|cat|blue|race|tesla|front|side)$|car$|airplane|pin$|parking)/;
 function snowSprite(name) {
   if (name in SNOWCAP) return SNOWCAP[name];
   const im = IMG[name]; if (!im || NO_SNOW.test(name)) return (SNOWCAP[name] = null);
@@ -1713,14 +1713,14 @@ function personItems(items) {
   }
 }
 function drawPerson(it) {
-  const p = it.person, im = IMG[p.sp]; if (!im) return;
+  const p = it.person, sp = winter && IMG['winter_' + p.sp] ? 'winter_' + p.sp : p.sp, im = IMG[sp]; if (!im) return; // winter clothes in winter
   const h = PERSON_H * p.hf * cam.scale, w = h * im.width / im.height;
   const bob = Math.abs(Math.sin(p.ph * (p.v > 20 ? 11 : 7))) * h * 0.05;
   ctx.save(); ctx.translate(it.sx, it.sy - bob);
   ctx.rotate(Math.sin(p.ph * (p.v > 20 ? 11 : 7)) * 0.04);
   if (it.left) ctx.scale(-1, 1);
   ctx.drawImage(im, -w / 2, -h, w, h);
-  if (night > 0.01) { const n = nightSprite(p.sp); if (n) { ctx.globalAlpha = night; ctx.drawImage(n, -w / 2, -h, w, h); } }
+  if (night > 0.01) { const n = nightSprite(sp); if (n) { ctx.globalAlpha = night; ctx.drawImage(n, -w / 2, -h, w, h); } }
   ctx.restore();
 }
 
@@ -2198,6 +2198,22 @@ function makeBulbGlow() {
     x.fillStyle = 'rgba(255,255,255,.85)'; x.beginPath(); x.arc(28, 28, 4, 0, 7); x.fill(); return c;
   });
 }
+let shum = null;
+async function santaSong(g) {
+  if (!actx) return;
+  if (muted || !voiceOn) g = 0;
+  if (!shum && g > 0.01) {
+    shum = { starting: true };
+    const b = await sound('santa', 'snd/santa.mp3'), a = audio();
+    if (!b || !a) { shum = null; return; }
+    const src = a.createBufferSource(), gain = a.createGain(); src.buffer = b; src.loop = true;
+    gain.gain.value = 0; src.connect(gain).connect(a.destination); src.start(); shum = { src, gain, g: 0 };
+  }
+  if (shum && shum.gain && Math.abs(shum.g - g) > 0.01) {
+    shum.g = g; shum.gain.gain.setTargetAtTime(g * g, actx.currentTime, 0.3);
+    if (g <= 0.01 && !santa) { const c = shum; shum = null; c.gain.gain.setTargetAtTime(0, actx.currentTime, 0.3); setTimeout(() => { try { c.src.stop(); } catch (e) { } }, 1500); }
+  }
+}
 let chum = null;
 async function caravanSong(g) {
   if (!actx) return;
@@ -2245,18 +2261,22 @@ async function busHum(g) {
 let santa = null, santaTimer = 60;
 function startSanta() {
   // fly straight across what is on the screen now, so Kostya sees it
-  const a = Math.random() * TAU, d = [Math.cos(a), Math.sin(a)], span = Math.hypot(W, H) / cam.scale * 0.5 + 250;
+  // he starts about 5 blocks away, so the song is heard coming before he shows up
+  const a = Math.random() * TAU, d = [Math.cos(a), Math.sin(a)], span = Math.hypot(W, H) / cam.scale * 0.5 + SANTA_HEAR;
   const c = [cam.x, cam.y], from = [c[0] - d[0] * span, c[1] - d[1] * span];
   santa = { x: from[0], y: from[1], d, h: a, v: AIR_V * 2 / 3, // a third slower than the plane
     left: 2 * span, sparks: [] };
-  playSong('santa');
 }
+const SANTA_HEAR = 2000; // about 5 blocks: the song fades in and out over this distance from the screen
 function drawSanta(dt) {
-  if (!newYearNow() || !winter) { if (santa) { santa = null; stopSong(); } return; }
+  if (!newYearNow() || !winter) { if (santa) { santa = null; santaSong(0); } return; }
   if (!santa) { santaTimer -= dt; if (santaTimer <= 0 && mode !== 'preview') { santaTimer = 540 + Math.random() * 120; startSanta(); } return; }
   const S = santa, im = IMG.santa;
   S.x += S.d[0] * S.v * dt; S.y += S.d[1] * S.v * dt; S.left -= S.v * dt;
-  if (S.left <= 0) { santa = null; return; }
+  if (S.left <= 0) { santa = null; santaSong(0); return; }
+  // loudness by how far he is from what is on the screen
+  const rView = Math.hypot(W, H) / cam.scale * 0.5, dOut = Math.hypot(S.x - cam.x, S.y - cam.y) - rView;
+  santaSong(clamp(1 - dOut / SANTA_HEAR, 0, 1));
   const len = Math.max(190, 300 * cam.scale), wid = im ? len * im.width / im.height : len * 0.35, bob = Math.sin(performance.now() / 300) * 4;
   // golden sparkles fall behind the sleigh
   if (Math.random() < dt * 25) S.sparks.push({ x: S.x - S.d[0] * 110, y: S.y - S.d[1] * 110, life: 1 });
@@ -2388,6 +2408,18 @@ async function playSong(name) {
   const src = a.createBufferSource(), g = a.createGain(); g.gain.value = 1.1; src.buffer = b; src.connect(g).connect(a.destination); src.start(); songSrc = src;
 }
 function stopSong() { try { songSrc?.stop(); } catch (e) { } songSrc = null; }
+// ---------- mini games: loaded only when needed ----------
+let gameOpen = false;
+function loadScript(src) { return new Promise((ok, bad) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
+async function openWash() {
+  if (mode !== 'arrived' || gameOpen) return;
+  try {
+    await loadScript('games/wash.js');
+    gameOpen = true;
+    const img = IMG['side_' + carSkin] || IMG[carSkin] || IMG.car_top; // side view at the car wash
+    window.WashGame.start({ img, audio, say: (t, codes) => say(t, true, codes), onDone: () => { gameOpen = false; } });
+  } catch (e) { gameOpen = false; } // if the game fails, the map simply stays
+}
 function arrive() {
   mode = 'arrived';
   car.node = trip.poi.node;
@@ -2406,6 +2438,7 @@ function arrive() {
   const cols = ['#F2545B', '#FFD23F', '#5BB8F5', '#7BC96F', '#9B7BE0', '#FF9F40'];
   engineStop(); sirenStop(); saveFuel();
   if (trip.poi.key === 'service' && broken) startRepair();
+  if (trip.poi.key === 'carwash') setTimeout(openWash, 1800);
   if (isGas(trip.poi) && fuel < 0.99) { say(isEV() ? 'Заряжаемся!' : 'Заправляемся!'); setTimeout(() => { refuelAnim = true; }, 2500); }
   for (let i = 0; i < 140; i++) confetti.push({ x: W / 2, y: H * 0.35, vx: (Math.random() - .5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - .5) * 12, col: cols[i % cols.length], life: 3 + Math.random() * 1.5 });
   releaseWake();
@@ -2933,6 +2966,7 @@ function tapAt(x, y) {
 // ---------- main loop ----------
 let last = performance.now();
 function frame(now) {
+  if (gameOpen) { last = now; requestAnimationFrame(frame); return; }
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const t = now / 1000;
   updateTrip(dt);
@@ -2999,6 +3033,6 @@ async function boot() {
   buildGarage();
   ui();
   requestAnimationFrame(frame);
-  window.__nav = { setGarland(p) { garlandShift = p ? 60 - (performance.now() / 1000) % 120 + 1 : -(performance.now() / 1000) % 120 + 1; }, startCaravan: w => startCaravan(w), get caravan() { return caravan; }, startSanta: () => startSanta(), get santa() { return santa; }, setTurn: v => setTurn(v), get decor() { return decor; }, setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
+  window.__nav = { openWash: () => { mode = 'arrived'; openWash(); }, setGarland(p) { garlandShift = p ? 60 - (performance.now() / 1000) % 120 + 1 : -(performance.now() / 1000) % 120 + 1; }, startCaravan: w => startCaravan(w), get caravan() { return caravan; }, startSanta: () => startSanta(), get santa() { return santa; }, setTurn: v => setTurn(v), get decor() { return decor; }, setHazard(v) { hazard = v; document.getElementById('btnHazard').classList.toggle('on', v); }, clip, VOICE_TEXT, tgt, get bus() { return BUS; }, people, get plane() { return plane; }, setPlane(p) { plane = p; }, POIS, decor, startPreview, startNav, nodes, edges, get trip() { return trip; }, get mode() { return mode; }, cam, car };
 }
 boot();
