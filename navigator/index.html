@@ -201,6 +201,13 @@
   #washGame .wgBar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5BB8F5, #7BC96F); transition: width .25s; }
   #washGame .wgGo { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 40px); transform: translateX(-50%); padding: 18px 34px; border-radius: 22px; background: #27AE60; color: #fff; font: 800 24px system-ui; box-shadow: 0 5px 0 #1B7A43, 0 8px 18px rgba(0,0,0,.25); }
   #washGame .wgGo.hidden { display: none; }
+  #arrived .btns { flex-direction: column; }
+  #arrived .go.fireGo { background: #E5383B; box-shadow: 0 4px 0 #A4161A; }
+  #fireGame { position: fixed; inset: 0; z-index: 50; background: #31B1FD; touch-action: none; }
+  #fireGame canvas { position: absolute; inset: 0; touch-action: none; }
+  #fireGame .fgClose { position: absolute; right: 14px; top: calc(env(safe-area-inset-top) + 14px); width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.9); font-size: 22px; box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+  #fireGame .fgGo { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 40px); transform: translateX(-50%); padding: 18px 34px; border-radius: 22px; background: #27AE60; color: #fff; font: 800 24px system-ui; box-shadow: 0 5px 0 #1B7A43, 0 8px 18px rgba(0,0,0,.25); white-space: nowrap; }
+  #fireGame .fgGo.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -275,7 +282,7 @@
   <div id="arWrap"><div class="pic" id="arPic"></div><div id="arPlace"></div></div>
   <h2 id="arTitle">Вы прибыли!</h2>
   <div class="sub" id="arName"></div>
-  <div class="btns"><button class="go" id="arOk">Куда дальше?</button></div>
+  <div class="btns"><button class="go fireGo hidden" id="arFire">Едем на пожар! 🚒</button><button class="go" id="arOk">Куда дальше?</button></div>
 </div>
 
 <script src="app.js"></script>

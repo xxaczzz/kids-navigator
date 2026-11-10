@@ -49,6 +49,9 @@
     const tex = mk(), tg = tex.getContext('2d');
     for (let k = 0; k < 260; k++) { const x = Math.random() * lw, y = Math.random() * lh, r = 3 + Math.random() * 9; tg.strokeStyle = 'rgba(150,190,230,.55)'; tg.lineWidth = 1.2; tg.beginPath(); tg.arc(x, y, r, 0, TAU); tg.stroke(); tg.fillStyle = 'rgba(255,255,255,.9)'; tg.beginPath(); tg.arc(x - r * 0.35, y - r * 0.35, r * 0.25, 0, TAU); tg.fill(); }
     const foamView = mk(), fvg = foamView.getContext('2d');
+    // water drops left on the car after rinsing: the dryer blows them away
+    const wet = mk(), wg = wet.getContext('2d');
+    function makeWet() { wg.clearRect(0, 0, lw, lh); for (let k = 0; k < 340; k++) { const x = Math.random() * lw, y = Math.random() * lh, r = 2 + Math.random() * 5; wg.fillStyle = 'rgba(120,190,245,.75)'; wg.beginPath(); wg.arc(x, y, r, 0, TAU); wg.fill(); wg.fillStyle = 'rgba(255,255,255,.95)'; wg.beginPath(); wg.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, TAU); wg.fill(); } wg.globalCompositeOperation = 'destination-in'; wg.drawImage(mask, 0, 0); wg.globalCompositeOperation = 'source-over'; }
     const dirt = mk(), dg = dirt.getContext('2d'), foam = mk(), fg = foam.getContext('2d');
     // random mud spots, only on the car
     for (let i = 0; i < 22; i++) {
@@ -62,20 +65,22 @@
     // sample points on the car to measure progress
     const S = []; for (let y = 2; y < lh; y += 6) for (let x = 2; x < lw; x += 6) if (inCar(x, y)) S.push(4 * (y * lw + x));
     const cover = (c, want) => { const d = c.getContext('2d').getImageData(0, 0, lw, lh).data; let n = 0; for (const i of S) if ((d[i + 3] > 40) === want) n++; return n / S.length; };
-    const GOAL = 0.85;
+    const GOAL = 0.85, MIN_WORK = 10; // a step is done when 85% is covered AND the finger worked for 10 s
 
-    st = { root, phase: 'foam', prog: 0, t0: performance.now(), sparks: [], drops: [], ptr: null, done: false };
+    let loop = null; // the sound that plays while the finger moves
+    st = { root, phase: 'foam', ready: false, work: 0, cov: 0, lastPaint: 0, prog: 0, t0: performance.now(), sparks: [], drops: [], ptr: null, done: false };
     const hint = root.querySelector('.wgHint'), bar = root.querySelector('.wgBar i');
     const setPhase = (p) => {
-      st.phase = p; st.prog = 0; st.pt = performance.now();
-      hint.textContent = { foam: '🫧 Наноси пену', scrub: '🧽 Три губкой', water: '🚿 Смой пену водичкой', dry: '💨 Сушим...', win: '✨ Машинка чистая!' }[p];
-      if (p === 'scrub') o.say('Трем губкой!', ['h17']);
-      if (p === 'water') o.say('Теперь смываем водичкой!', ['h18']);
-      if (p === 'dry') { sfx(null); once('wash_dryer'); }
+      st.phase = p; st.prog = 0; st.cov = 0; st.work = 0; st.ready = false; st.pt = performance.now(); sfx(null);
+      hint.textContent = { foam: 'пену', scrub: 'губкой', water: 'водичкой', dry: 'Сушим', win: 'win' }[p];
       if (p === 'win') { o.say('Ура! Машинка чистая!', ['h19']); once('wash_shine'); root.querySelector('.wgGo').classList.remove('hidden'); confetti(); }
     };
-    o.say('Машинка грязная! Давай помоем! Наносим пену!', ['h15', 'h16']);
+    o.say('Машинка грязная! Давай помоем!', ['h15']);
     setPhase('foam');
+    // Kostya picks the tool: tapping the blinking badge starts the step
+    const PICK_SAY = { foam: ['Наносим пену!', 'h16'], scrub: ['Трем губкой!', 'h17'], water: ['Теперь смываем водичкой!', 'h18'], dry: ['Сушим машинку!', 'h20'] };
+    function pick() { st.ready = true; const [t, c] = PICK_SAY[st.phase]; o.say(t, [c]); once('wash_pick'); }
+    st.badges = [];
     // the finger: a sponge in step 1, a water jet in step 2
     const toLocal = (x, y) => [(x - box.x) / box.w * lw, (y - box.y) / box.h * lh];
     let lastCheck = 0;
@@ -85,10 +90,12 @@
       for (let k = 0; k < 9; k++) { const a = Math.random() * TAU, d = r * (0.35 + Math.random() * 0.6); c.beginPath(); c.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, r * (0.18 + Math.random() * 0.3), 0, TAU); c.fill(); }
     }
     function paint(x, y) {
+      if (!st.ready || st.phase === 'win') return;
       const [lx, ly] = toLocal(x, y), u = lw / box.w; // screen px -> layer px
+      const nowP = performance.now(); if (nowP - st.lastPaint < 200) st.work += (nowP - st.lastPaint) / 1000; st.lastPaint = nowP;
       if (st.phase === 'foam') {
-        for (let k = 0; k < 4; k++) {
-          const bx = lx + (Math.random() - .5) * 44 * u, by = ly + (Math.random() - .5) * 44 * u, r = (18 + Math.random() * 18) * u;
+        for (let k = 0; k < 3; k++) {
+          const bx = lx + (Math.random() - .5) * 30 * u, by = ly + (Math.random() - .5) * 30 * u, r = (11 + Math.random() * 12) * u;
           fg.fillStyle = '#FFFFFF'; fg.beginPath(); fg.arc(bx, by, r, 0, TAU); fg.fill();
           fg.strokeStyle = '#C9DDF0'; fg.lineWidth = 1.5; fg.beginPath(); fg.arc(bx, by, r * 0.55, Math.PI * 1.1, Math.PI * 1.6); fg.stroke();
         }
@@ -96,29 +103,39 @@
         sfx('wash_foam');
       } else if (st.phase === 'scrub') {
         // the sponge dissolves the mud under the foam: the foam turns from brown to white
-        dg.globalCompositeOperation = 'destination-out'; rag(dg, lx, ly, 34 * u); dg.globalCompositeOperation = 'source-over';
+        dg.globalCompositeOperation = 'destination-out'; rag(dg, lx, ly, 22 * u); dg.globalCompositeOperation = 'source-over';
         sfx('wash_sponge');
       } else if (st.phase === 'water') {
-        for (const c of [fg, dg]) { c.globalCompositeOperation = 'destination-out'; rag(c, lx, ly, 36 * u); c.globalCompositeOperation = 'source-over'; }
+        for (const c of [fg, dg]) { c.globalCompositeOperation = 'destination-out'; rag(c, lx, ly, 24 * u); c.globalCompositeOperation = 'source-over'; }
         for (let k = 0; k < 6; k++) st.drops.push({ x, y, vx: (Math.random() - .5) * 260, vy: -Math.random() * 200 - 60, life: 0.6 });
         sfx('wash_water');
+      } else if (st.phase === 'dry') {
+        wg.globalCompositeOperation = 'destination-out'; rag(wg, lx, ly, 26 * u); wg.globalCompositeOperation = 'source-over';
+        sfx('wash_dryer');
       }
       const now = performance.now();
       if (now - lastCheck > 250) {
         lastCheck = now;
-        if (st.phase === 'foam') { st.prog = cover(foam, true); if (st.prog >= GOAL) { fg.fillStyle = '#FFFFFF'; for (let k = 0; k < 420; k++) { fg.beginPath(); fg.arc(Math.random() * lw, Math.random() * lh, 8 + Math.random() * 14, 0, TAU); fg.fill(); } fg.globalCompositeOperation = 'destination-in'; fg.drawImage(maskBig, 0, 0); fg.globalCompositeOperation = 'source-over'; sfx(null); setPhase('scrub'); } }
-        else if (st.phase === 'scrub') { st.prog = cover(dirt, false); if (st.prog >= GOAL) { dg.clearRect(0, 0, lw, lh); sfx(null); setPhase('water'); } }
-        else if (st.phase === 'water') { const a = cover(foam, false); st.prog = a; if (st.prog >= GOAL) { fg.clearRect(0, 0, lw, lh); dg.clearRect(0, 0, lw, lh); setPhase('dry'); setTimeout(() => setPhase('win'), 2200); } }
+        const fin = () => st.cov >= GOAL && st.work >= MIN_WORK;
+        if (st.phase === 'foam') { st.cov = cover(foam, true); if (fin()) { fg.fillStyle = '#FFFFFF'; for (let k = 0; k < 420; k++) { fg.beginPath(); fg.arc(Math.random() * lw, Math.random() * lh, 8 + Math.random() * 14, 0, TAU); fg.fill(); } fg.globalCompositeOperation = 'destination-in'; fg.drawImage(maskBig, 0, 0); fg.globalCompositeOperation = 'source-over'; sfx(null); setPhase('scrub'); } }
+        else if (st.phase === 'scrub') { st.cov = cover(dirt, false); if (fin()) { dg.clearRect(0, 0, lw, lh); sfx(null); setPhase('water'); } }
+        else if (st.phase === 'water') { st.cov = cover(foam, false); if (fin()) { fg.clearRect(0, 0, lw, lh); dg.clearRect(0, 0, lw, lh); makeWet(); setPhase('dry'); } }
+        else if (st.phase === 'dry') { st.cov = cover(wet, false); if (fin()) { wg.clearRect(0, 0, lw, lh); setPhase('win'); } }
+        // the tube shows the slower of the two: how much is covered and how long he worked
+        st.prog = Math.min(st.cov / GOAL, st.work / MIN_WORK) * GOAL;
       }
     }
-    cv.addEventListener('pointerdown', e => { st.ptr = [e.clientX, e.clientY]; paint(e.clientX, e.clientY); });
+    cv.addEventListener('pointerdown', e => {
+      for (const bd of st.badges) if (Math.hypot(e.clientX - bd.x, e.clientY - bd.y) < bd.r + 10) { if (bd.step === st.phase && !st.ready) { pick(); return; } }
+      st.ptr = [e.clientX, e.clientY]; paint(e.clientX, e.clientY);
+    });
     cv.addEventListener('pointermove', e => { if (!st.ptr) return; const [px, py] = st.ptr, d = Math.hypot(e.clientX - px, e.clientY - py), n = Math.max(1, Math.ceil(d / 10)); for (let i = 1; i <= n; i++) paint(px + (e.clientX - px) * i / n, py + (e.clientY - py) * i / n); st.ptr = [e.clientX, e.clientY]; });
     const up = () => { if (!st) return; st.ptr = null; if (loop) { const a = o.audio(); loop.g.gain.setTargetAtTime(0, a.currentTime, 0.08); } };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('pointerleave', up);
     // sounds: loops while the finger moves, one-shots for the dryer and the shine
-    let loop = null; const BUF = {};
+    const BUF = {};
     async function buf(name) { const a = o.audio && o.audio(); if (!a) return null; if (BUF[name] !== undefined) return BUF[name]; try { BUF[name] = await a.decodeAudioData(await (await fetch('snd/' + name + '.mp3')).arrayBuffer()); } catch (e) { BUF[name] = null; } return BUF[name]; }
-    ['wash_foam', 'wash_sponge', 'wash_water', 'wash_dryer', 'wash_shine'].forEach(buf);
+    ['wash_foam', 'wash_sponge', 'wash_water', 'wash_dryer', 'wash_shine', 'wash_pick'].forEach(buf);
     function sfx(kind) {
       const a = o.audio && o.audio(); if (!a) return;
       if (!kind) { if (loop) { const l = loop; loop = null; l.g.gain.setTargetAtTime(0, a.currentTime, 0.06); setTimeout(() => { try { l.s && l.s.stop(); } catch (e) { } }, 400); } return; }
@@ -149,14 +166,15 @@
       g.drawImage(im, b.x, b.y + bob, b.w, b.h);
       if (st.phase === 'foam') { g.drawImage(dirt, b.x, b.y + bob, b.w, b.h); fvg.clearRect(0, 0, lw, lh); fvg.globalCompositeOperation = 'source-over'; fvg.drawImage(foam, 0, 0); fvg.globalCompositeOperation = 'source-atop'; fvg.drawImage(tex, 0, 0); g.drawImage(foamView, b.x, b.y + bob, b.w, b.h); g.globalAlpha = 0.4; g.drawImage(dirt, b.x, b.y + bob, b.w, b.h); g.globalAlpha = 1; }
       else { fvg.clearRect(0, 0, lw, lh); fvg.globalCompositeOperation = 'source-over'; fvg.drawImage(foam, 0, 0); fvg.globalCompositeOperation = 'source-atop'; fvg.drawImage(tex, 0, 0); g.drawImage(foamView, b.x, b.y + bob, b.w, b.h); g.globalAlpha = st.phase === 'scrub' ? 0.45 : 1; g.drawImage(dirt, b.x, b.y + bob, b.w, b.h); g.globalAlpha = 1; }
+      if (st.phase === 'dry') g.drawImage(wet, b.x, b.y + bob, b.w, b.h);
       // dryer: warm air lines from the top
-      if (st.phase === 'dry') { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3; for (let k = 0; k < 8; k++) { const x = b.x + b.w * (k + 0.5) / 8, y = ((t * 600 + k * 70) % (b.h + 80)) + b.y - 40; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 10, y + 18, x, y + 36); g.stroke(); } }
+      if (st.phase === 'dry' && false) { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3; for (let k = 0; k < 8; k++) { const x = b.x + b.w * (k + 0.5) / 8, y = ((t * 600 + k * 70) % (b.h + 80)) + b.y - 40; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 10, y + 18, x, y + 36); g.stroke(); } }
       // shine on a clean car
-      if (st.phase === 'win' || st.phase === 'dry') for (let k = 0; k < 6; k++) { const ph = (t * 1.3 + k / 6) % 1, x = b.x + b.w * ((k * 37) % 10 / 10 * 0.8 + 0.1), y = b.y + b.h * ((k * 53) % 10 / 10 * 0.8 + 0.1), r = 10 * Math.sin(ph * Math.PI); g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.lineTo(x + Math.cos(a + Math.PI / 4) * r * 0.3, y + Math.sin(a + Math.PI / 4) * r * 0.3); } g.fill(); }
+      if (st.phase === 'win') for (let k = 0; k < 6; k++) { const ph = (t * 1.3 + k / 6) % 1, x = b.x + b.w * ((k * 37) % 10 / 10 * 0.8 + 0.1), y = b.y + b.h * ((k * 53) % 10 / 10 * 0.8 + 0.1), r = 10 * Math.sin(ph * Math.PI); g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); g.lineTo(x + Math.cos(a + Math.PI / 4) * r * 0.3, y + Math.sin(a + Math.PI / 4) * r * 0.3); } g.fill(); }
       // the tools: foam gun and water gun aim at the finger from below, the sponge sits under the finger
       const tool = (k, x, y, w, rot, ax, ay) => { const T = TOOL[k]; if (!T.complete || !T.naturalWidth) return; const h = w * T.naturalHeight / T.naturalWidth; g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(T, -w * ax, -h * ay, w, h); g.restore(); };
-      if (st.ptr && st.phase === 'scrub') { const [x, y] = st.ptr, wob = Math.sin(t * 18) * 0.12; tool('sponge', x, y, 96, wob, 0.5, 0.55); }
-      if (st.phase === 'foam' || st.phase === 'water') {
+      if (st.ready && st.ptr && st.phase === 'scrub') { const [x, y] = st.ptr, wob = Math.sin(t * 18) * 0.12; tool('sponge', x, y, 96, wob, 0.5, 0.55); }
+      if (st.ready && (st.phase === 'foam' || st.phase === 'water')) {
         const k = st.phase, T = TOOL[k], aim = st.ptr || [W / 2, b.y + b.h * 0.4];
         const base = k === 'foam' ? [W * 0.74, H * 0.99] : [W * 0.5, H * 0.99];
         const w = k === 'foam' ? 150 : 92, h = T.naturalWidth ? w * T.naturalHeight / T.naturalWidth : w * 2;
@@ -175,30 +193,42 @@
         }
         tool(k, base[0], base[1], w, ang, 0.5, 1.0);
       }
-      if (st.phase === 'dry') { const x = W / 2 + Math.sin(t * 2.2) * b.w * 0.3; tool('dryer', x, b.y - 30, 90, 0, 0.5, 0.9); }
+      if (st.ready && st.phase === 'dry') {
+        // the dryer follows the finger from above and blows warm air down onto it
+        const [x, y] = st.ptr || [W / 2, b.y + b.h * 0.4], hy = y - 70;
+        if (st.ptr) { g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 3; g.lineCap = 'round'; for (let k = 0; k < 5; k++) { const ox = (k - 2) * 12, f = (t * 3 + k * 0.2) % 1, yy2 = hy + 10 + f * 60; g.beginPath(); g.moveTo(x + ox, yy2); g.quadraticCurveTo(x + ox + 6, yy2 + 8, x + ox, yy2 + 16); g.stroke(); } }
+        tool('dryer', x, hy, 84, 0, 0.5, 1.0);
+      }
       for (let i = st.drops.length - 1; i >= 0; i--) { const d = st.drops[i]; d.vy += 900 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt; if (d.life <= 0) { st.drops.splice(i, 1); continue; } g.fillStyle = `rgba(90,170,255,${d.life * 1.4})`; g.beginPath(); g.arc(d.x, d.y, 4, 0, TAU); g.fill(); }
       for (let i = st.sparks.length - 1; i >= 0; i--) { const c = st.sparks[i]; c.vy += 400 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt; c.life -= dt; if (c.life <= 0) { st.sparks.splice(i, 1); continue; } g.save(); g.translate(c.x, c.y); g.rotate(c.r); g.fillStyle = c.col; g.fillRect(-5, -3, 10, 6); g.restore(); }
       // steps at the top: 4 round badges with the tool icons, the current one big and glowing, done ones with a check
-      const ci = STEPS.indexOf(st.phase === 'win' ? 'dry' : st.phase), R = 27, gap = 14, x0 = (W - 64) / 2 - (4 * 2 * R + 3 * gap) / 2 + R, yy = 50;
+      const ci = STEPS.indexOf(st.phase === 'win' ? 'dry' : st.phase), R = 28, gap = 12, x0 = (W - 64) / 2 - (4 * 2 * R + 3 * gap) / 2 + R, yy = 52;
+      st.badges = [];
       for (let k2 = 0; k2 < 4; k2++) {
-        const done = k2 < ci || st.phase === 'win', cur = k2 === ci && st.phase !== 'win', x = x0 + k2 * (2 * R + gap), sc = cur ? 1.25 + Math.sin(t * 5) * 0.05 : 1;
+        const done = k2 < ci || st.phase === 'win', cur = k2 === ci && st.phase !== 'win', waiting = cur && !st.ready;
+        let x = x0 + k2 * (2 * R + gap);
+        const bd = st.badges[k2] = { x, y: yy, r: R * 1.3, step: STEPS[k2], shake: (st.shakes || {})[k2] };
+        // the badge to tap pulses strongly; a tool in use stays big and calm
+        const sc = waiting ? 1.3 + Math.sin(t * 8) * 0.15 : cur ? 1.25 : 1;
         if (k2 < 3) { g.strokeStyle = done ? '#4CD07A' : 'rgba(255,255,255,.7)'; g.lineWidth = 6; g.beginPath(); g.moveTo(x + R, yy); g.lineTo(x + R + gap, yy); g.stroke(); }
         g.save(); g.translate(x, yy); g.scale(sc, sc);
-        if (cur) { g.fillStyle = 'rgba(255,230,120,.55)'; g.beginPath(); g.arc(0, 0, R + 9, 0, TAU); g.fill(); }
+        if (cur) { g.fillStyle = waiting ? `rgba(255,220,80,${0.45 + 0.4 * Math.abs(Math.sin(t * 8))})` : 'rgba(255,230,120,.5)'; g.beginPath(); g.arc(0, 0, R + (waiting ? 12 : 8), 0, TAU); g.fill(); }
         g.fillStyle = done ? '#E6FFF0' : cur ? '#FFFFFF' : 'rgba(255,255,255,.55)'; g.strokeStyle = done ? '#2FB36A' : cur ? '#1D2A44' : 'rgba(29,42,68,.35)'; g.lineWidth = 3;
         g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill(); g.stroke();
         const T = TOOL[STEP_ICON[STEPS[k2]]];
         if (T.complete && T.naturalWidth) { const s2 = R * 1.45 / Math.max(T.naturalWidth, T.naturalHeight); g.globalAlpha = done || cur ? 1 : 0.45; g.drawImage(T, -T.naturalWidth * s2 / 2, -T.naturalHeight * s2 / 2, T.naturalWidth * s2, T.naturalHeight * s2); g.globalAlpha = 1; }
         if (done) { g.fillStyle = '#2FB36A'; g.beginPath(); g.arc(R * 0.7, R * 0.7, 11, 0, TAU); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(R * 0.7 - 5, R * 0.7); g.lineTo(R * 0.7 - 1, R * 0.7 + 4); g.lineTo(R * 0.7 + 6, R * 0.7 - 4); g.stroke(); }
         g.restore();
+        // a hand under the badge shows where to tap
+        if (waiting) { g.font = '34px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('👆', x + 6, yy + R + 30 + Math.abs(Math.sin(t * 6)) * 10); }
       }
       // progress tube: fills with foam bubbles or water for the current step
-      if (st.phase !== 'win' && st.phase !== 'dry') {
+      if (st.phase !== 'win' && st.ready) {
         const tx = W * 0.14, tw = W * 0.6, ty = yy + 46, th = 20, f = clamp(st.prog / GOAL, 0, 1);
         g.fillStyle = 'rgba(255,255,255,.85)'; g.strokeStyle = '#1D2A44'; g.lineWidth = 3; g.beginPath(); g.roundRect(tx, ty, tw, th, th / 2); g.fill(); g.stroke();
         if (f > 0.02) {
           g.save(); g.beginPath(); g.roundRect(tx + 3, ty + 3, (tw - 6) * f, th - 6, (th - 6) / 2); g.clip();
-          const col = st.phase === 'water' ? ['#5BB8F5', '#2F80ED'] : st.phase === 'scrub' ? ['#FFE066', '#F5B700'] : ['#FFFFFF', '#CFE3F5'];
+          const col = st.phase === 'water' ? ['#5BB8F5', '#2F80ED'] : st.phase === 'scrub' ? ['#FFE066', '#F5B700'] : st.phase === 'dry' ? ['#FFB46B', '#FF7A1A'] : ['#FFFFFF', '#CFE3F5'];
           const gr = g.createLinearGradient(0, ty, 0, ty + th); gr.addColorStop(0, col[0]); gr.addColorStop(1, col[1]); g.fillStyle = gr; g.fillRect(tx, ty, tw, th);
           g.fillStyle = 'rgba(255,255,255,.75)'; for (let q = 0; q < 12; q++) { const bx = tx + ((q * 47 + t * 40) % tw), by = ty + th / 2 + Math.sin(t * 4 + q) * 3; g.beginPath(); g.arc(bx, by, 3, 0, TAU); g.fill(); }
           g.restore();
